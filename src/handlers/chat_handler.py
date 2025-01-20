@@ -1,7 +1,8 @@
 """Chat handler for DeepSeek CLI"""
 
+import json
 from typing import Optional, Dict, Any, List
-from ..config.settings import (
+from config.settings import (
     MODEL_CONFIGS,
     TEMPERATURE_PRESETS,
     DEFAULT_MAX_TOKENS,
@@ -9,8 +10,7 @@ from ..config.settings import (
     MAX_FUNCTIONS,
     MAX_STOP_SEQUENCES
 )
-from ..utils.version_checker import check_version
-import json
+from utils.version_checker import check_version
 
 class ChatHandler:
     def __init__(self):
@@ -172,41 +172,67 @@ class ChatHandler:
 
     def handle_response(self, response) -> Optional[str]:
         """Handle API response and extract content"""
-        if not self.stream:
-            self.display_token_info(response.usage.model_dump())
-            
-            # Handle reasoning model response
-            if self.model == "deepseek-reasoner" and hasattr(response.choices[0].message, "reasoning_content"):
-                content = response.choices[0].message.content
-                reasoning = response.choices[0].message.reasoning_content
-                # Store reasoning content in message history
-                self.messages.append({
-                    "role": "assistant",
-                    "content": content,
-                    "reasoning_content": reasoning
-                })
-                # Display reasoning if not in stream mode
-                print("\nReasoning:", reasoning)
-                return content
-            
-            # Handle tool calls (function calling)
-            if hasattr(response.choices[0].message, "tool_calls"):
-                return json.dumps(response.choices[0].message.tool_calls, indent=2)
-            
-            return response.choices[0].message.content
-        else:
-            return self.stream_response(response)
+        try:
+            if not self.stream:
+                if hasattr(response, 'usage'):
+                    self.display_token_info(response.usage.model_dump())
+                
+                # Get the message from the response
+                choice = response.choices[0]
+                if not hasattr(choice, 'message'):
+                    return None
+                
+                message = choice.message
+                content = message.content if hasattr(message, 'content') else None
+                
+                # Handle tool calls (function calling)
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_calls = []
+                    for tool_call in message.tool_calls:
+                        if tool_call.type == "function":
+                            tool_calls.append({
+                                "id": tool_call.id,
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments
+                            })
+                    return json.dumps(tool_calls, indent=2)
+                
+                # Handle regular message content
+                if content is not None:
+                    self.messages.append({
+                        "role": "assistant",
+                        "content": content
+                    })
+                    return content
+                
+                return None
+            else:
+                return self.stream_response(response)
+        except Exception as e:
+            print(f"\nUnexpected error: {str(e)}")
+            return None
 
     def stream_response(self, response) -> str:
         """Handle streaming response"""
         full_response = ""
-        for chunk in response:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
-                print(content, end='', flush=True)
-                full_response += content
-        print()  # New line after streaming
-        return full_response
+        try:
+            for chunk in response:
+                if hasattr(chunk.choices[0], 'delta'):
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content is not None:
+                        content = delta.content
+                        print(content, end='', flush=True)
+                        full_response += content
+            print()  # New line after streaming
+            if full_response:
+                self.messages.append({
+                    "role": "assistant",
+                    "content": full_response
+                })
+            return full_response
+        except Exception as e:
+            print(f"\nError in stream response: {str(e)}")
+            return full_response
 
     def add_message(self, role: str, content: str) -> None:
         """Add a message to the conversation history"""

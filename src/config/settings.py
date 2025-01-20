@@ -32,16 +32,21 @@ FEATURE_CONFIGS = {
 
 # Model configurations
 MODEL_CONFIGS = {
-    "deepseek-chat": {"max_tokens": 8192, "max_output": 8192},  # DeepSeek-V3
+    "deepseek-chat": {
+        "name": "deepseek-chat",
+        "max_tokens": 8192,
+        "description": "DeepSeek-V2.5 Chat model with 8K token output limit"
+    },
+    "deepseek-coder": {
+        "name": "deepseek-coder",
+        "max_tokens": 8192,
+        "description": "DeepSeek-V2.5 Coder model optimized for code generation"
+    },
     "deepseek-reasoner": {
-        "max_tokens": 64000,  # Maximum context length
-        "max_output": 8192,   # Maximum output tokens
-        "cot_output": 32000,  # Maximum Chain of Thought output tokens
-        "supported_features": ["chat", "prefix"],
-        "unsupported_features": ["function_call", "json_output", "fim"],
-        "unsupported_params": ["temperature", "top_p", "presence_penalty", "frequency_penalty", "logprobs", "top_logprobs"]
-    },  # DeepSeek-R1
-    "deepseek-coder": {"max_tokens": 8192, "max_output": 8192}
+        "name": "deepseek-reasoner",
+        "max_tokens": 8192,
+        "description": "DeepSeek-R1 with 64K context and 8K output limit"
+    }
 }
 
 # Temperature presets

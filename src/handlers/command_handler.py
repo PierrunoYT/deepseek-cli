@@ -2,8 +2,9 @@
 
 import json
 from typing import Optional, Dict, Any, Tuple
-from ..api.client import APIClient
-from ..handlers.chat_handler import ChatHandler
+from api.client import APIClient
+from handlers.chat_handler import ChatHandler
+from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 
 class CommandHandler:
     def __init__(self, api_client: APIClient, chat_handler: ChatHandler):
@@ -147,7 +148,6 @@ Notes:
 
     def get_about_message(self) -> str:
         """Get about message"""
-        from ..config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
         return f"""DeepSeek API Information:
   Documentation: {API_DOCS}
   Authentication: Bearer Token

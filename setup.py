@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepseek-cli",
-    version="0.1.8",
+    version="0.1.13",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
     description="A powerful CLI for interacting with DeepSeek's AI models",
@@ -32,10 +32,16 @@ setup(
     install_requires=[
         "openai>=1.0.0",
         "requests>=2.31.0",
+        "typing-extensions>=4.7.0",
+        "pydantic>=2.0.0",
     ],
     entry_points={
         "console_scripts": [
-            "deepseek=src.cli.deepseek_cli:main",
+            "deepseek=cli.deepseek_cli:main",
         ],
     },
+    package_data={
+        "": ["*.py", "*.json"],
+    },
+    include_package_data=True,
 ) 

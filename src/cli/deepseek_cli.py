@@ -1,11 +1,11 @@
 """Main CLI class for DeepSeek"""
 
 import json
-from typing import Optional
-from ..api.client import APIClient
-from ..handlers.chat_handler import ChatHandler
-from ..handlers.command_handler import CommandHandler
-from ..handlers.error_handler import ErrorHandler
+from typing import Optional, Dict, Any, Tuple
+from api.client import APIClient
+from handlers.chat_handler import ChatHandler
+from handlers.command_handler import CommandHandler
+from handlers.error_handler import ErrorHandler
 
 class DeepSeekCLI:
     def __init__(self):
@@ -56,9 +56,19 @@ class DeepSeekCLI:
                 else:
                     if not self.chat_handler.stream:
                         self.display_token_info(response.usage.model_dump())
-                    if response.choices[0].function_call:
-                        return json.dumps(response.choices[0].function_call, indent=2)
-                    return response.choices[0].message.content
+                    
+                    # Get the message content
+                    message = response.choices[0].message
+                    
+                    # Check for tool calls (function calling) if they exist
+                    if hasattr(message, "tool_calls") and message.tool_calls:
+                        return json.dumps([{
+                            "id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments
+                        } for tool_call in message.tool_calls], indent=2)
+                    
+                    return message.content
 
             # Execute request with retry logic
             response = self.error_handler.retry_with_backoff(make_request, self.api_client)

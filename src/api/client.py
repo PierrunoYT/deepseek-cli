@@ -2,8 +2,8 @@
 
 import os
 from openai import OpenAI
-from typing import Optional, Dict, Any
-from ..config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+from typing import Optional, Dict, Any, List
+from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
 
 class APIClient:
     def __init__(self):
@@ -37,7 +37,11 @@ class APIClient:
         return self.client.models.list()
 
     def create_chat_completion(self, **kwargs) -> Any:
-        """Create a chat completion"""
+        """Create a chat completion with proper function handling"""
+        # Convert functions to tools format for compatibility
+        if "functions" in kwargs:
+            kwargs["tools"] = [{"type": "function", "function": f} for f in kwargs.pop("functions")]
+            
         return self.client.chat.completions.create(**kwargs)
 
     def update_api_key(self, new_key: str) -> None:
