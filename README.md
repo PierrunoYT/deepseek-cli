@@ -212,8 +212,8 @@ Forces model to output valid JSON. Example system message:
 
 ## Support
 
-For support, contact: api-service@deepseek.com
+For support, please open an issue on the [GitHub repository](https://github.com/PierrunoYT/deepseek-cli/issues).
 
 ## License
 
-MIT License 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
