@@ -31,6 +31,12 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - Top-p sampling
   - Frequency and presence penalties
 
+- 📦 Package Management
+  - Automatic version checking
+  - Update notifications
+  - Easy installation and updates
+  - Development mode support
+
 ## Installation
 
 You can install DeepSeek CLI in two ways:
@@ -63,6 +69,8 @@ For development installation, pull the latest changes and reinstall:
 git pull
 pip install -e . --upgrade
 ```
+
+The CLI will automatically check for updates on startup and notify you when a new version is available.
 
 ### API Key Setup
 
