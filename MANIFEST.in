@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+recursive-include src *.py
+recursive-include src/config *.py
+recursive-include src/cli *.py
+recursive-include src/api *.py
+recursive-include src/handlers *.py
+recursive-include src/utils *.py 
