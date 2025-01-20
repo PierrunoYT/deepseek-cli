@@ -5,14 +5,15 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepseek-cli",
-    version="0.1.4",
+    version="0.1.5",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
     description="A powerful CLI for interacting with DeepSeek's AI models",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/PierrunoYT/deepseek-cli",  # Replace with your repo URL
-    packages=find_packages(),
+    url="https://github.com/PierrunoYT/deepseek-cli",
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -33,7 +34,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "deepseek=deepseek_cli:main",
+            "deepseek=src.cli.deepseek_cli:main",
         ],
     },
 ) 

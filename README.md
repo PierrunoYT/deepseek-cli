@@ -49,6 +49,21 @@ cd deepseek-cli
 pip install -e .
 ```
 
+### Updating the Package
+
+To update to the latest version:
+
+```bash
+pip install --upgrade deepseek-cli
+```
+
+For development installation, pull the latest changes and reinstall:
+
+```bash
+git pull
+pip install -e . --upgrade
+```
+
 ### API Key Setup
 
 Set your DeepSeek API key as an environment variable:
