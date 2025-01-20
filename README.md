@@ -2,6 +2,8 @@
 
 A powerful command-line interface for interacting with DeepSeek's AI models.
 
+[@PierrunoYT/deepseek-cli](https://github.com/PierrunoYT/deepseek-cli)
+
 ## Features
 
 - 🤖 Multiple Model Support
@@ -31,82 +33,68 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 
 ## Installation
 
-### Prerequisites
-- Python 3.7 or higher
-- Git (for cloning the repository)
-- pip (Python package installer)
+You can install DeepSeek CLI in two ways:
 
-### Step 1: Clone the Repository
+### Option 1: Install from PyPI (Recommended)
 
 ```bash
-git clone https://github.com/yourusername/deepseek-cli.git
+pip install deepseek-cli
+```
+
+### Option 2: Install from Source (Development)
+
+```bash
+git clone https://github.com/PierrunoYT/deepseek-cli.git
 cd deepseek-cli
+pip install -e .
 ```
 
-### Step 2: Install Dependencies
+### API Key Setup
 
-```bash
-pip install openai
-```
-
-### Step 3: Set Up API Key
+Set your DeepSeek API key as an environment variable:
 
 #### macOS/Linux
-In your terminal:
 ```bash
-echo 'export DEEPSEEK_API_KEY="your-api-key"' >> ~/.bashrc    # For Bash
-echo 'export DEEPSEEK_API_KEY="your-api-key"' >> ~/.zshrc     # For Zsh
-source ~/.bashrc  # or source ~/.zshrc
+export DEEPSEEK_API_KEY="your-api-key"
 ```
 
 #### Windows
-In Command Prompt (Run as Administrator):
 ```cmd
-setx DEEPSEEK_API_KEY "your-api-key"
-```
-Or in PowerShell (Run as Administrator):
-```powershell
-[Environment]::SetEnvironmentVariable("DEEPSEEK_API_KEY", "your-api-key", "User")
+set DEEPSEEK_API_KEY="your-api-key"
 ```
 
-### Step 4: Verify Installation
+To make it permanent, add it to your environment variables through System Settings.
 
+## Usage
+
+After installation, you can start the CLI in two ways:
+
+### If installed from PyPI:
 ```bash
-# macOS/Linux
-echo $DEEPSEEK_API_KEY
+deepseek
+```
 
-# Windows Command Prompt
-echo %DEEPSEEK_API_KEY%
-
-# Windows PowerShell
-echo $env:DEEPSEEK_API_KEY
+### If installed in development mode:
+```bash
+deepseek
+# or
+python -m deepseek_cli
 ```
 
 ### Troubleshooting
 
-#### macOS/Linux
-- If the API key is not recognized, try:
-  ```bash
-  source ~/.bashrc  # or source ~/.zshrc
-  ```
-- If you get permission errors:
-  ```bash
-  chmod +x deepseek_cli.py
-  ```
+- If the API key is not recognized:
+  - Make sure you've set the DEEPSEEK_API_KEY environment variable
+  - Try closing and reopening your terminal
+  - Check if the key is correct with: `echo $DEEPSEEK_API_KEY` (Unix) or `echo %DEEPSEEK_API_KEY%` (Windows)
 
-#### Windows
-- If you get execution policy errors in PowerShell:
-  ```powershell
-  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-  ```
-- If the environment variable is not recognized, close and reopen your terminal
+- If you get import errors:
+  - Ensure you've installed the package: `pip list | grep deepseek-cli`
+  - Try reinstalling: `pip install --force-reinstall deepseek-cli`
 
-## Usage
-
-Start the CLI:
-```bash
-python deepseek_cli.py
-```
+- For development installation issues:
+  - Make sure you're in the correct directory
+  - Try: `pip install -e . --upgrade`
 
 ### Available Commands
 
@@ -216,4 +204,4 @@ For support, please open an issue on the [GitHub repository](https://github.com/
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
