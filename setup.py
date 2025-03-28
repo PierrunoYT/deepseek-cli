@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepseek-cli",
-    version="0.1.13",
+    version="0.1.14",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
     description="A powerful CLI for interacting with DeepSeek's AI models",
@@ -34,6 +34,7 @@ setup(
         "requests>=2.31.0",
         "typing-extensions>=4.7.0",
         "pydantic>=2.0.0",
+        "setuptools>=42.0.0",
     ],
     entry_points={
         "console_scripts": [
@@ -44,4 +45,4 @@ setup(
         "": ["*.py", "*.json"],
     },
     include_package_data=True,
-) 
+)
