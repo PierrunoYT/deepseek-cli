@@ -43,6 +43,7 @@ venv.bak/
 .deepseek_history
 .deepseek_cache/
 .api_key
+issues_and_fixes.md
 
 # OS specific
 .DS_Store
