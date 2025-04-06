@@ -13,27 +13,31 @@ class CommandHandler:
 
     def handle_command(self, command: str) -> Tuple[bool, Optional[str]]:
         """Handle CLI commands and return (should_continue, message)"""
+        command = command.strip().lower()  # Normalize input
+        if not command:
+            return True, None
+
         if command in ['quit', 'exit']:
             return False, "Goodbye!"
-            
+
         elif command == '/json':
             self.chat_handler.toggle_json_mode()
             return True, f"JSON mode {'enabled' if self.chat_handler.json_mode else 'disabled'}"
-            
+
         elif command == '/stream':
             self.chat_handler.toggle_stream()
             return True, f"Streaming {'enabled' if self.chat_handler.stream else 'disabled'}"
-            
+
         elif command == '/beta':
             self.api_client.toggle_beta()
             return True, f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'}"
-            
+
         elif command == '/prefix':
             if not self.api_client.beta_mode:
                 return True, "Error: Prefix mode requires beta mode. Use /beta first."
             self.chat_handler.prefix_mode = not self.chat_handler.prefix_mode
             return True, f"Prefix mode {'enabled' if self.chat_handler.prefix_mode else 'disabled'}"
-            
+
         elif command == '/models':
             try:
                 response = self.api_client.list_models()
@@ -43,19 +47,19 @@ class CommandHandler:
                 return True, "No models available"
             except Exception as e:
                 return True, f"Error fetching models: {str(e)}"
-            
+
         elif command.startswith('/model '):
             model = command.split(' ')[1]
             if self.chat_handler.switch_model(model):
                 return True, f"Switched to {model} model\nMax tokens set to {self.chat_handler.max_tokens}"
             return True, "Invalid model"
-            
+
         elif command.startswith('/temp '):
             temp_str = command.split(' ')[1]
             if self.chat_handler.set_temperature(temp_str):
                 return True, f"Temperature set to {self.chat_handler.temperature}"
             return True, "Invalid temperature value or preset"
-            
+
         elif command.startswith('/freq '):
             try:
                 penalty = float(command.split(' ')[1])
@@ -64,7 +68,7 @@ class CommandHandler:
                 return True, "Frequency penalty must be between -2.0 and 2.0"
             except ValueError:
                 return True, "Invalid frequency penalty value"
-            
+
         elif command.startswith('/pres '):
             try:
                 penalty = float(command.split(' ')[1])
@@ -73,7 +77,7 @@ class CommandHandler:
                 return True, "Presence penalty must be between -2.0 and 2.0"
             except ValueError:
                 return True, "Invalid presence penalty value"
-            
+
         elif command.startswith('/top_p '):
             try:
                 top_p = float(command.split(' ')[1])
@@ -82,17 +86,17 @@ class CommandHandler:
                 return True, "Top_p must be between 0.0 and 1.0"
             except ValueError:
                 return True, "Invalid top_p value"
-            
+
         elif command.startswith('/stop '):
             sequence = command[6:]
             if self.chat_handler.add_stop_sequence(sequence):
                 return True, f"Stop sequence added: {sequence}"
             return True, "Maximum number of stop sequences reached"
-            
+
         elif command == '/clearstop':
             self.chat_handler.clear_stop_sequences()
             return True, "All stop sequences cleared"
-            
+
         elif command.startswith('/function '):
             try:
                 function = json.loads(command[10:])
@@ -101,21 +105,21 @@ class CommandHandler:
                 return True, "Maximum number of functions reached"
             except json.JSONDecodeError:
                 return True, "Invalid JSON format for function definition"
-            
+
         elif command == '/clearfuncs':
             self.chat_handler.clear_functions()
             return True, "All functions cleared"
-            
+
         elif command == '/clear':
             self.chat_handler.clear_history()
             return True, "Conversation history cleared"
-            
+
         elif command == '/help':
             return True, self.get_help_message()
-            
+
         elif command == '/about':
             return True, self.get_about_message()
-            
+
         return None, None
 
     def get_help_message(self) -> str:
@@ -153,4 +157,4 @@ Notes:
   Authentication: Bearer Token
   Contact: {API_CONTACT}
   License: {API_LICENSE}
-  Terms of Service: {API_TERMS}""" 
+  Terms of Service: {API_TERMS}"""

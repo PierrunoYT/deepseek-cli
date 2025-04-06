@@ -12,13 +12,16 @@ def get_current_version() -> str:
         return "0.0.0"
 
 def get_latest_version() -> Optional[str]:
-    """Get the latest version from PyPI"""
+    """Get the latest version from PyPI with better error handling"""
     try:
-        response = requests.get("https://pypi.org/pypi/deepseek-cli/json", timeout=2)
-        if response.status_code == 200:
-            return response.json()["info"]["version"]
-        return None
-    except Exception:
+        response = requests.get(
+            "https://pypi.org/pypi/deepseek-cli/json",
+            timeout=2,
+            headers={'User-Agent': 'deepseek-cli-version-check'}
+        )
+        response.raise_for_status()
+        return response.json()["info"]["version"]
+    except requests.RequestException:
         return None
 
 def check_version() -> Tuple[bool, str, str]:
@@ -28,7 +31,7 @@ def check_version() -> Tuple[bool, str, str]:
     """
     current = get_current_version()
     latest = get_latest_version()
-    
+
     if latest and latest != current:
         return True, current, latest
-    return False, current, latest or current 
+    return False, current, latest or current

@@ -4,6 +4,7 @@ import os
 from openai import OpenAI
 from typing import Optional, Dict, Any, List
 from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+from utils.exceptions import DeepSeekError
 
 class APIClient:
     def __init__(self):
@@ -21,11 +22,13 @@ class APIClient:
 
     def _create_client(self) -> OpenAI:
         """Create OpenAI client with DeepSeek configuration"""
-        return OpenAI(
-            api_key=self.api_key,
-            base_url=DEFAULT_BASE_URL,
-            default_headers={"Authorization": f"Bearer {self.api_key}"}
-        )
+        try:
+            return OpenAI(
+                api_key=self.api_key,
+                base_url=DEFAULT_BASE_URL
+            )
+        except Exception as e:
+            raise DeepSeekError(f"Failed to initialize API client: {str(e)}")
 
     def toggle_beta(self) -> None:
         """Toggle beta mode and update base URL"""
@@ -41,10 +44,10 @@ class APIClient:
         # Convert functions to tools format for compatibility
         if "functions" in kwargs:
             kwargs["tools"] = [{"type": "function", "function": f} for f in kwargs.pop("functions")]
-            
+
         return self.client.chat.completions.create(**kwargs)
 
     def update_api_key(self, new_key: str) -> None:
         """Update API key and recreate client"""
         self.api_key = new_key
-        self.client = self._create_client() 
+        self.client = self._create_client()

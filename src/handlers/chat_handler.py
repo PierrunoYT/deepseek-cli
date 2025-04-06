@@ -8,7 +8,8 @@ from config.settings import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
     MAX_FUNCTIONS,
-    MAX_STOP_SEQUENCES
+    MAX_STOP_SEQUENCES,
+    MAX_HISTORY_LENGTH
 )
 from utils.version_checker import check_version
 
@@ -27,7 +28,7 @@ class ChatHandler:
         self.top_p = 1.0
         self.stop_sequences = []
         self.stream_options = {"include_usage": True}
-        
+
         # Check for new version
         update_available, current_version, latest_version = check_version()
         if update_available:
@@ -137,7 +138,7 @@ class ChatHandler:
             "stream": self.stream,
             "max_tokens": self.max_tokens
         }
-        
+
         # Only add these parameters if not using the reasoner model
         if self.model != "deepseek-reasoner":
             kwargs.update({
@@ -146,16 +147,16 @@ class ChatHandler:
                 "presence_penalty": self.presence_penalty,
                 "top_p": self.top_p
             })
-            
+
             if self.json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
-            
+
             if self.functions:
                 kwargs["tools"] = [{"type": "function", "function": f} for f in self.functions]
-        
+
         if self.stop_sequences:
             kwargs["stop"] = self.stop_sequences
-        
+
         if self.stream:
             kwargs["stream_options"] = self.stream_options
 
@@ -176,15 +177,15 @@ class ChatHandler:
             if not self.stream:
                 if hasattr(response, 'usage'):
                     self.display_token_info(response.usage.model_dump())
-                
+
                 # Get the message from the response
                 choice = response.choices[0]
                 if not hasattr(choice, 'message'):
                     return None
-                
+
                 message = choice.message
                 content = message.content if hasattr(message, 'content') else None
-                
+
                 # Handle tool calls (function calling)
                 if hasattr(message, "tool_calls") and message.tool_calls:
                     tool_calls = []
@@ -196,7 +197,7 @@ class ChatHandler:
                                 "arguments": tool_call.function.arguments
                             })
                     return json.dumps(tool_calls, indent=2)
-                
+
                 # Handle regular message content
                 if content is not None:
                     self.messages.append({
@@ -204,7 +205,7 @@ class ChatHandler:
                         "content": content
                     })
                     return content
-                
+
                 return None
             else:
                 return self.stream_response(response)
@@ -212,15 +213,15 @@ class ChatHandler:
             print(f"\nUnexpected error: {str(e)}")
             return None
 
-    def stream_response(self, response) -> str:
+    def stream_response(self, response: Any) -> str:
         """Handle streaming response"""
-        full_response = ""
+        full_response: str = ""
         try:
             for chunk in response:
                 if hasattr(chunk.choices[0], 'delta'):
                     delta = chunk.choices[0].delta
                     if hasattr(delta, 'content') and delta.content is not None:
-                        content = delta.content
+                        content: str = delta.content
                         print(content, end='', flush=True)
                         full_response += content
             print()  # New line after streaming
@@ -234,6 +235,27 @@ class ChatHandler:
             print(f"\nError in stream response: {str(e)}")
             return full_response
 
+    def display_token_info(self, usage: dict) -> None:
+        """Display token usage information"""
+        if usage:
+            print("\nToken Usage:")
+            print(f"  Input tokens: {usage.get('prompt_tokens', 0)}")
+            print(f"  Output tokens: {usage.get('completion_tokens', 0)}")
+            print(f"  Total tokens: {usage.get('total_tokens', 0)}")
+
+            # Estimate character counts (rough approximation)
+            eng_chars = usage.get('total_tokens', 0) * 3  # 1 token ≈ 0.3 English chars
+            cn_chars = usage.get('total_tokens', 0) * 1.67  # 1 token ≈ 0.6 Chinese chars
+            print("\nEstimated character equivalents:")
+            print(f"  English: ~{eng_chars} characters")
+            print(f"  Chinese: ~{cn_chars} characters")
+
     def add_message(self, role: str, content: str) -> None:
-        """Add a message to the conversation history"""
-        self.messages.append({"role": role, "content": content}) 
+        """Add a message to the conversation history with limit"""
+        self.messages.append({"role": role, "content": content})
+        if len(self.messages) > MAX_HISTORY_LENGTH:
+            # Remove oldest messages but keep system message
+            if self.messages[0]["role"] == "system":
+                self.messages = [self.messages[0]] + self.messages[-(MAX_HISTORY_LENGTH-1):]
+            else:
+                self.messages = self.messages[-MAX_HISTORY_LENGTH:]
