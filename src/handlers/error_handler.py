@@ -3,8 +3,16 @@
 import time
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError
-from src.utils.exceptions import RateLimitExceeded
-from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+
+# Add proper import paths for both development and installed modes
+try:
+    # When running as an installed package
+    from utils.exceptions import RateLimitExceeded
+    from config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+except ImportError:
+    # When running in development mode
+    from src.utils.exceptions import RateLimitExceeded
+    from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 
 class ErrorHandler:
     def __init__(self, max_retries: int = 3):

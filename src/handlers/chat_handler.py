@@ -2,16 +2,32 @@
 
 import json
 from typing import Optional, Dict, Any, List
-from src.config.settings import (
-    MODEL_CONFIGS,
-    TEMPERATURE_PRESETS,
-    DEFAULT_MAX_TOKENS,
-    DEFAULT_TEMPERATURE,
-    MAX_FUNCTIONS,
-    MAX_STOP_SEQUENCES,
-    MAX_HISTORY_LENGTH
-)
-from src.utils.version_checker import check_version
+
+# Add proper import paths for both development and installed modes
+try:
+    # When running as an installed package
+    from config.settings import (
+        MODEL_CONFIGS,
+        TEMPERATURE_PRESETS,
+        DEFAULT_MAX_TOKENS,
+        DEFAULT_TEMPERATURE,
+        MAX_FUNCTIONS,
+        MAX_STOP_SEQUENCES,
+        MAX_HISTORY_LENGTH
+    )
+    from utils.version_checker import check_version
+except ImportError:
+    # When running in development mode
+    from src.config.settings import (
+        MODEL_CONFIGS,
+        TEMPERATURE_PRESETS,
+        DEFAULT_MAX_TOKENS,
+        DEFAULT_TEMPERATURE,
+        MAX_FUNCTIONS,
+        MAX_STOP_SEQUENCES,
+        MAX_HISTORY_LENGTH
+    )
+    from src.utils.version_checker import check_version
 
 class ChatHandler:
     def __init__(self):

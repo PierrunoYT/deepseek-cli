@@ -3,8 +3,16 @@
 import os
 from openai import OpenAI
 from typing import Dict, Any
-from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-from src.utils.exceptions import DeepSeekError
+
+# Add proper import paths for both development and installed modes
+try:
+    # When running as an installed package
+    from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+    from utils.exceptions import DeepSeekError
+except ImportError:
+    # When running in development mode
+    from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+    from src.utils.exceptions import DeepSeekError
 
 class APIClient:
     def __init__(self):
