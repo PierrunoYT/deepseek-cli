@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepseek-cli",
-    version="0.1.15",
+    version="0.1.16",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
     description="A powerful CLI for interacting with DeepSeek's AI models",
