@@ -1,11 +1,12 @@
 """Main CLI class for DeepSeek"""
 
 import json
-from typing import Optional, Dict, Any, Tuple
-from api.client import APIClient
-from handlers.chat_handler import ChatHandler
-from handlers.command_handler import CommandHandler
-from handlers.error_handler import ErrorHandler
+import argparse
+from typing import Optional
+from src.api.client import APIClient
+from src.handlers.chat_handler import ChatHandler
+from src.handlers.command_handler import CommandHandler
+from src.handlers.error_handler import ErrorHandler
 
 class DeepSeekCLI:
     def __init__(self):
@@ -104,9 +105,38 @@ class DeepSeekCLI:
                 elif not self.chat_handler.stream:
                     print("\nAssistant:", assistant_response)
 
+    def run_inline_query(self, query: str, model: Optional[str] = None) -> str:
+        """Run a single query and return the response"""
+        # Set initial system message
+        self.chat_handler.set_system_message("You are a helpful assistant.")
+
+        # Set model if specified
+        if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
+            self.chat_handler.switch_model(model)
+
+        # Get and return response
+        return self.get_completion(query) or "Error: Failed to get response"
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models")
+    parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
+    parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+                        help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
+    return parser.parse_args()
+
 def main():
+    args = parse_arguments()
     cli = DeepSeekCLI()
-    cli.run()
+
+    # Check if running in inline mode
+    if args.query:
+        # Run in inline mode
+        response = cli.run_inline_query(args.query, args.model)
+        print(response)
+    else:
+        # Run in interactive mode
+        cli.run()
 
 if __name__ == "__main__":
     main()

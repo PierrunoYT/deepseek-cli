@@ -16,6 +16,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - System message customization
   - Conversation history tracking
   - Context caching for better performance
+  - Inline mode for quick queries
 
 - 🧪 Beta Features
   - Prefix Completion: Complete assistant messages from a given prefix
@@ -90,7 +91,11 @@ To make it permanent, add it to your environment variables through System Settin
 
 ## Usage
 
-After installation, you can start the CLI in two ways:
+DeepSeek CLI supports two modes of operation: interactive mode and inline mode.
+
+### Interactive Mode
+
+After installation, you can start the CLI in interactive mode in two ways:
 
 ### If installed from PyPI:
 ```bash
@@ -103,6 +108,22 @@ deepseek
 # or
 python -m deepseek_cli
 ```
+
+### Inline Mode
+
+You can also use DeepSeek CLI in inline mode to get quick answers without starting an interactive session:
+
+```bash
+# Basic usage
+deepseek -q "What is the capital of France?"
+
+# Specify a model
+deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder
+```
+
+Available inline mode options:
+- `-q, --query`: The query to send to the model
+- `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
 
 ### Troubleshooting
 

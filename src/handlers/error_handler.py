@@ -3,15 +3,15 @@
 import time
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError
-from utils.exceptions import RateLimitExceeded
-from config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+from src.utils.exceptions import RateLimitExceeded
+from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 
 class ErrorHandler:
     def __init__(self, max_retries: int = 3):
         self.max_retries = max_retries
         self.retry_delay = DEFAULT_RETRY_DELAY
         self.max_retry_delay = DEFAULT_MAX_RETRY_DELAY
-        
+
         # Define error messages for each status code
         self.status_messages = {
             400: {
@@ -48,20 +48,20 @@ class ErrorHandler:
         """Handle API errors with detailed messages"""
         status_code = getattr(e, 'status_code', None)
         error_code = getattr(e, 'code', None)
-        
+
         # Handle rate limit errors with retry
         if isinstance(e, RateLimitError) or status_code == 429:
             retry_after = int(getattr(e, 'headers', {}).get('retry-after', self.retry_delay))
             print(f"\nRate limit exceeded. Retrying in {retry_after} seconds...")
             time.sleep(retry_after)
             return "retry"
-        
+
         # Handle other status codes
         if status_code in self.status_messages:
             error_info = self.status_messages[status_code]
             print(f"\nError ({status_code}): {error_info['message']}")
             print(f"Solution: {error_info['solution']}")
-            
+
             # Special handling for specific error codes
             if status_code == 401 and api_client:
                 # Prompt for new API key on authentication failure
@@ -79,7 +79,7 @@ class ErrorHandler:
             print(f"\nUnexpected API Error (Code {status_code}): {str(e)}")
             if error_code:
                 print(f"Error code: {error_code}")
-        
+
         return None
 
     def retry_with_backoff(self, func: Callable, api_client: Any = None) -> Any:
@@ -94,4 +94,4 @@ class ErrorHandler:
                     time.sleep(current_delay)
                     current_delay = min(current_delay * 2, self.max_retry_delay)
                     continue
-                raise 
+                raise

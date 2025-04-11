@@ -2,7 +2,7 @@
 
 import json
 from typing import Optional, Dict, Any, List
-from config.settings import (
+from src.config.settings import (
     MODEL_CONFIGS,
     TEMPERATURE_PRESETS,
     DEFAULT_MAX_TOKENS,
@@ -11,7 +11,7 @@ from config.settings import (
     MAX_STOP_SEQUENCES,
     MAX_HISTORY_LENGTH
 )
-from utils.version_checker import check_version
+from src.utils.version_checker import check_version
 
 class ChatHandler:
     def __init__(self):

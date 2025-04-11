@@ -2,9 +2,9 @@
 
 import os
 from openai import OpenAI
-from typing import Optional, Dict, Any, List
-from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-from utils.exceptions import DeepSeekError
+from typing import Dict, Any
+from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+from src.utils.exceptions import DeepSeekError
 
 class APIClient:
     def __init__(self):
