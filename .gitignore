@@ -62,6 +62,8 @@ venv.bak/
 .api_key
 issues_and_fixes.md
 IMPROVEMENTS.md
+TASKS.md
+TASKS.md
 
 # OS specific
 .DS_Store
