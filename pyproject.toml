@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=42.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepseek-cli"
+version = "0.1.17"
+description = "A powerful CLI for interacting with DeepSeek's AI models"
+readme = "README.md"
+authors = [
+    {name = "PierrunoYT", email = "pierrebruno@hotmail.ch"}
+]
+license = "MIT"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "openai>=1.0.0",
+    "requests>=2.31.0",
+    "typing-extensions>=4.7.0",
+    "pydantic>=2.0.0",
+    "setuptools>=42.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/PierrunoYT/deepseek-cli"
+
+[project.scripts]
+deepseek = "cli.deepseek_cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.py", "*.json"]
