@@ -38,7 +38,7 @@ class DeepSeekCLI:
         print()  # New line after streaming
         return full_response
 
-    def get_completion(self, user_input: str) -> Optional[str]:
+    def get_completion(self, user_input: str, raw: bool = False) -> Optional[str]:
         """Get completion from the API with retry logic"""
         try:
             # Add user message to history
@@ -52,7 +52,7 @@ class DeepSeekCLI:
                 if self.chat_handler.stream:
                     return self.stream_response(response)
                 else:
-                    if not self.chat_handler.stream:
+                    if not self.chat_handler.stream and not raw:
                         self.chat_handler.display_token_info(response.usage.model_dump())
 
                     # Get the message content
@@ -115,7 +115,7 @@ class DeepSeekCLI:
                 elif not self.chat_handler.stream:
                     print("\nAssistant:", assistant_response)
 
-    def run_inline_query(self, query: str, model: Optional[str] = None) -> str:
+    def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False) -> str:
         """Run a single query and return the response"""
         # Set initial system message
         self.chat_handler.set_system_message("You are a helpful assistant.")
@@ -125,7 +125,7 @@ class DeepSeekCLI:
             self.chat_handler.switch_model(model)
 
         # Get and return response
-        return self.get_completion(query) or "Error: Failed to get response"
+        return self.get_completion(query, raw=raw) or "Error: Failed to get response"
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -133,6 +133,7 @@ def parse_arguments():
     parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
     parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
+    parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
     return parser.parse_args()
 
 def main():
@@ -142,7 +143,7 @@ def main():
     # Check if running in inline mode
     if args.query:
         # Run in inline mode
-        response = cli.run_inline_query(args.query, args.model)
+        response = cli.run_inline_query(args.query, args.model, args.raw)
         print(response)
     else:
         # Run in interactive mode

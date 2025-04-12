@@ -119,11 +119,18 @@ deepseek -q "What is the capital of France?"
 
 # Specify a model
 deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder
+
+# Get raw output without token usage information
+deepseek -q "Write a Python function to calculate factorial" -r
+
+# Combine options
+deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r
 ```
 
 Available inline mode options:
 - `-q, --query`: The query to send to the model
 - `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
+- `-r, --raw`: Output raw response without token usage information
 
 ### Troubleshooting
 
