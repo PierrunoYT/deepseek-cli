@@ -61,6 +61,7 @@ venv.bak/
 .deepseek_cache/
 .api_key
 issues_and_fixes.md
+IMPROVEMENTS.md
 
 # OS specific
 .DS_Store
