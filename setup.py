@@ -38,7 +38,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "deepseek=cli.deepseek_cli:main",
+            "deepseek=src.cli.deepseek_cli:main",
         ],
     },
     package_data={

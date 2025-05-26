@@ -25,19 +25,6 @@ class DeepSeekCLI:
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
 
-    # Token usage display moved to ChatHandler class
-
-    def stream_response(self, response) -> str:
-        """Handle streaming response"""
-        full_response = ""
-        for chunk in response:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
-                print(content, end='', flush=True)
-                full_response += content
-        print()  # New line after streaming
-        return full_response
-
     def get_completion(self, user_input: str, raw: bool = False) -> Optional[str]:
         """Get completion from the API with retry logic"""
         try:
@@ -49,32 +36,10 @@ class DeepSeekCLI:
 
             def make_request():
                 response = self.api_client.create_chat_completion(**kwargs)
-                if self.chat_handler.stream:
-                    return self.stream_response(response)
-                else:
-                    if not self.chat_handler.stream and not raw:
-                        self.chat_handler.display_token_info(response.usage.model_dump())
-
-                    # Get the message content
-                    message = response.choices[0].message
-
-                    # Check for tool calls (function calling) if they exist
-                    if hasattr(message, "tool_calls") and message.tool_calls:
-                        return json.dumps([{
-                            "id": tool_call.id,
-                            "name": tool_call.function.name,
-                            "arguments": tool_call.function.arguments
-                        } for tool_call in message.tool_calls], indent=2)
-
-                    return message.content
+                return self.chat_handler.handle_response(response)
 
             # Execute request with retry logic
             response = self.error_handler.retry_with_backoff(make_request, self.api_client)
-
-            # Add assistant response to history if successful
-            if response:
-                self.chat_handler.add_message("assistant", response)
-
             return response
 
         except Exception as e:
