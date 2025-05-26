@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepseek-cli"
-version = "0.1.17"
+version = "0.1.18"
 description = "A powerful CLI for interacting with DeepSeek's AI models"
 readme = "README.md"
 authors = [
