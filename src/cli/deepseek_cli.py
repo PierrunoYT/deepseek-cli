@@ -4,6 +4,11 @@ import json
 import argparse
 from typing import Optional
 
+try:
+    import readline  # noqa
+except ImportError:
+    pass
+
 # Add proper import paths for both development and installed modes
 try:
     # When running as an installed package
