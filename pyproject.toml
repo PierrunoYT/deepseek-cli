@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     {name = "PierrunoYT", email = "pierrebruno@hotmail.ch"}
 ]
-license = "MIT"
+license = {text = "MIT"}
 requires-python = ">=3.7"
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -37,7 +37,7 @@ dependencies = [
 Homepage = "https://github.com/PierrunoYT/deepseek-cli"
 
 [project.scripts]
-deepseek = "src.cli.deepseek_cli:main"
+deepseek = "cli.deepseek_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
