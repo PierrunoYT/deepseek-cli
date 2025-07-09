@@ -4,6 +4,11 @@ import json
 import argparse
 from typing import Optional
 
+try:
+    import readline  # noqa
+except ImportError:
+    pass
+
 # Add proper import paths for both development and installed modes
 try:
     # When running as an installed package
@@ -19,9 +24,9 @@ except ImportError:
     from src.handlers.error_handler import ErrorHandler
 
 class DeepSeekCLI:
-    def __init__(self):
+    def __init__(self, *, stream: bool = False):
         self.api_client = APIClient()
-        self.chat_handler = ChatHandler()
+        self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
 
@@ -99,11 +104,12 @@ def parse_arguments():
     parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
+    parser.add_argument("-s", "--stream", action="store_true", help="Enable stream mode")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    cli = DeepSeekCLI()
+    cli = DeepSeekCLI(stream=args.stream)
 
     # Check if running in inline mode
     if args.query:
