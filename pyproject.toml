@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "deepseek-cli"
-version = "0.1.18"
+version = "0.1.19"
 description = "A powerful CLI for interacting with DeepSeek's AI models"
 readme = "README.md"
 authors = [
@@ -37,7 +37,7 @@ dependencies = [
 Homepage = "https://github.com/PierrunoYT/deepseek-cli"
 
 [project.scripts]
-deepseek = "src.cli.deepseek_cli:main"
+deepseek = "cli.deepseek_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
