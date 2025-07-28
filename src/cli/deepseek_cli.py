@@ -72,9 +72,6 @@ class DeepSeekCLI:
         while True:
             # Prompt user input with a styled label
             user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
-            
-            breakpoint()
-
             # Handle commands
             result = self.command_handler.handle_command(user_input)
             
