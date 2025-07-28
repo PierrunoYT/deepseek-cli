@@ -52,7 +52,6 @@ class APIClient:
         # Convert functions to tools format for compatibility
         if "functions" in kwargs:
             kwargs["tools"] = [{"type": "function", "function": f} for f in kwargs.pop("functions")]
-
         return self.client.chat.completions.create(**kwargs)
 
     def update_api_key(self, new_key: str) -> None:

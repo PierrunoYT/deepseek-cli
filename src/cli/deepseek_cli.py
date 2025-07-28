@@ -3,7 +3,15 @@
 import json
 import argparse
 from typing import Optional
-
+from rich.console import Console
+from rich.panel import Panel
+from rich import box
+from rich.align import Align
+from rich.markdown import Markdown
+from rich.prompt import Prompt
+from rich.text import Text
+from pyfiglet import Figlet
+console = Console()
 try:
     import readline  # noqa
 except ImportError:
@@ -22,6 +30,9 @@ except ImportError:
     from src.handlers.chat_handler import ChatHandler
     from src.handlers.command_handler import CommandHandler
     from src.handlers.error_handler import ErrorHandler
+
+
+    
 
 class DeepSeekCLI:
     def __init__(self, *, stream: bool = False):
@@ -56,14 +67,14 @@ class DeepSeekCLI:
         # Set initial system message
         self.chat_handler.set_system_message("You are a helpful assistant.")
 
-        print("Welcome to DeepSeek CLI! (Type '/help' for commands)")
-        print("-" * 50)
+        self._print_welcome()
 
         while True:
-            user_input = input("\nYou: ").strip()
-
+            # Prompt user input with a styled label
+            user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
             # Handle commands
             result = self.command_handler.handle_command(user_input)
+            
             if result[0] is False:  # Exit
                 print(f"\n{result[1]}")
                 break
@@ -83,7 +94,8 @@ class DeepSeekCLI:
                     except json.JSONDecodeError:
                         print("\nAssistant:", assistant_response)
                 elif not self.chat_handler.stream:
-                    print("\nAssistant:", assistant_response)
+                    # print("\nAssistant:", assistant_response)
+                    pass
 
     def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False) -> str:
         """Run a single query and return the response"""
@@ -96,6 +108,42 @@ class DeepSeekCLI:
 
         # Get and return response
         return self.get_completion(query, raw=raw) or "Error: Failed to get response"
+    def _print_welcome(self, style = 'simple'):
+        """Display a stylish welcome banner."""
+
+        if style == 'simple': 
+            panel = Panel(
+                Align.center(
+                    "Use natural language to interact with AI.\nType /help for commands, or exit to quit.",
+                    vertical="middle"
+                ),
+                title="💡 DeepSeek CLI",
+                border_style="cyan",
+                box=box.SIMPLE
+            )
+            console.print(panel)        
+        else: 
+            fig = Figlet(font='slant')
+            ascii_title = fig.renderText('DeepSeek CLI')
+
+            # Apply gradient colors to ASCII art
+            gradient_title = Text()
+            colors = ["#FF61A6", "#FF82B2", "#FF9DC3", "#C18AFF", "#7A7CFF", "#4BCFFF"]
+            for i, line in enumerate(ascii_title.splitlines()):
+                gradient_title.append(line + "\n", style=colors[i % len(colors)])
+
+            # Panel for the welcome banner
+            welcome_panel = Panel(
+                Align.center(gradient_title),
+                border_style="bold #FF82B2",
+                box=box.ROUNDED,
+                padding=(1, 2),
+                title="[bold #4BCFFF]🚀 Welcome 🚀[/bold #4BCFFF]",
+                subtitle="[italic #7A7CFF]Type 'exit' to quit[/italic #7A7CFF]",
+                expand=True
+            )
+            console.print(welcome_panel)
+            console.print()
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -115,7 +163,6 @@ def main():
     if args.query:
         # Run in inline mode
         response = cli.run_inline_query(args.query, args.model, args.raw)
-        print(response)
     else:
         # Run in interactive mode
         cli.run()
