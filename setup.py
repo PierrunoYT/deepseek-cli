@@ -35,6 +35,8 @@ setup(
         "typing-extensions>=4.7.0",
         "pydantic>=2.0.0",
         "setuptools>=42.0.0",
+        "rich>=14.0.0",
+        "pyfiglet>=1.0.3"
     ],
     entry_points={
         "console_scripts": [
