@@ -2,6 +2,12 @@
 
 import json
 from typing import Optional, Dict, Any, List
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.live import Live
+from rich import box 
+from rich.panel import Panel
+
 
 # Add proper import paths for both development and installed modes
 try:
@@ -44,6 +50,9 @@ class ChatHandler:
         self.top_p = 1.0
         self.stop_sequences = []
         self.stream_options = {"include_usage": True}
+
+        self.console = Console()
+
 
         # Check for new version
         update_available, current_version, latest_version = check_version()
@@ -220,8 +229,15 @@ class ChatHandler:
                         "role": "assistant",
                         "content": content
                     })
+                    self.console.print(Panel(
+                                Markdown(content),
+                                border_style="bright_blue",
+                                box=box.ROUNDED,
+                                padding=(0, 1),
+                                title="[bold green]AI[/bold green]"
+                            ))
                     return content
-
+            
                 return None
             else:
                 return self.stream_response(response)
@@ -230,17 +246,26 @@ class ChatHandler:
             return None
 
     def stream_response(self, response: Any) -> str:
+        
         """Handle streaming response"""
         full_response: str = ""
         try:
-            for chunk in response:
-                if hasattr(chunk.choices[0], 'delta'):
-                    delta = chunk.choices[0].delta
-                    if hasattr(delta, 'content') and delta.content is not None:
-                        content: str = delta.content
-                        print(content, end='', flush=True)
-                        full_response += content
-            print()  # New line after streaming
+            with Live("", console=self.console, refresh_per_second=10) as live: 
+                for chunk in response:
+                    if hasattr(chunk.choices[0], 'delta'):
+                        delta = chunk.choices[0].delta
+                        if hasattr(delta, 'content') and delta.content is not None:
+                            content: str = delta.content
+                            full_response += content
+                            bubble = Panel(
+                                Markdown(full_response),
+                                border_style="bright_blue",
+                                box=box.ROUNDED,
+                                padding=(0, 1),
+                                title="[bold green]AI[/bold green]"
+                            )
+                            live.update(bubble)
+            # self.console.print('\n')
             if full_response:
                 self.messages.append({
                     "role": "assistant",
@@ -248,24 +273,33 @@ class ChatHandler:
                 })
             return full_response
         except Exception as e:
-            print(f"\nError in stream response: {str(e)}")
+            self.console.print(f"\nError in stream response: {str(e)}")
             return full_response
 
     def display_token_info(self, usage: dict) -> None:
         """Display token usage information"""
         if usage:
-            print("\nToken Usage:")
-            print(f"  Input tokens: {usage.get('prompt_tokens', 0)}")
-            print(f"  Output tokens: {usage.get('completion_tokens', 0)}")
-            print(f"  Total tokens: {usage.get('total_tokens', 0)}")
+            input_tokens = usage.get('prompt_tokens', 0)
+            output_tokens = usage.get('completion_tokens', 0)
+            total_tokens = usage.get('total_tokens', 0)
 
             # Estimate character counts (rough approximation)
-            eng_chars = usage.get('total_tokens', 0) * 3  # 1 token ≈ 0.3 English chars
-            cn_chars = usage.get('total_tokens', 0) * 1.67  # 1 token ≈ 0.6 Chinese chars
-            print("\nEstimated character equivalents:")
-            print(f"  English: ~{eng_chars} characters")
-            print(f"  Chinese: ~{cn_chars} characters")
+            eng_chars = total_tokens * 3     # 1 token ≈ 0.3 English chars
+            cn_chars = total_tokens * 1.67   # 1 token ≈ 0.6 Chinese chars
 
+            # Compose text
+            text = (
+                f"[bold yellow]Token Usage:[/bold yellow]\n"
+                f"  [green]Input tokens:[/green] {input_tokens}\n"
+                f"  [green]Output tokens:[/green] {output_tokens}\n"
+                f"  [green]Total tokens:[/green] {total_tokens}\n\n"
+                f"[bold yellow]Estimated character equivalents:[/bold yellow]\n"
+                f"  [cyan]English:[/cyan] ~{eng_chars} characters\n"
+                f"  [cyan]Chinese:[/cyan] ~{cn_chars} characters"
+            )
+
+            # Print in a nice box
+            self.console.print(Panel(text, title="Token Info", border_style="cyan", box=box.ROUNDED))
     def add_message(self, role: str, content: str) -> None:
         """Add a message to the conversation history with limit"""
         self.messages.append({"role": role, "content": content})
