@@ -163,6 +163,7 @@ def main():
     if args.query:
         # Run in inline mode
         response = cli.run_inline_query(args.query, args.model, args.raw)
+        print(response)
     else:
         # Run in interactive mode
         cli.run()

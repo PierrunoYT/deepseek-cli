@@ -246,25 +246,42 @@ class ChatHandler:
             return None
 
     def stream_response(self, response: Any) -> str:
-        
+
         """Handle streaming response"""
         full_response: str = ""
+        chunk_count = 0
         try:
-            with Live("", console=self.console, refresh_per_second=10) as live: 
+            with Live("", console=self.console, refresh_per_second=8) as live:
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
                         if hasattr(delta, 'content') and delta.content is not None:
                             content: str = delta.content
                             full_response += content
-                            bubble = Panel(
-                                Markdown(full_response),
-                                border_style="bright_blue",
-                                box=box.ROUNDED,
-                                padding=(0, 1),
-                                title="[bold green]AI[/bold green]"
-                            )
-                            live.update(bubble)
+                            chunk_count += 1
+
+                            # Update display every 3 chunks or if content ends with punctuation
+                            # This reduces object creation while maintaining responsiveness
+                            if chunk_count % 3 == 0 or content.rstrip().endswith(('.', '!', '?', '\n')):
+                                bubble = Panel(
+                                    Markdown(full_response),
+                                    border_style="bright_blue",
+                                    box=box.ROUNDED,
+                                    padding=(0, 1),
+                                    title="[bold green]AI[/bold green]"
+                                )
+                                live.update(bubble)
+
+                # Final update to ensure complete response is displayed
+                if full_response:
+                    final_bubble = Panel(
+                        Markdown(full_response),
+                        border_style="bright_blue",
+                        box=box.ROUNDED,
+                        padding=(0, 1),
+                        title="[bold green]AI[/bold green]"
+                    )
+                    live.update(final_bubble)
             # self.console.print('\n')
             if full_response:
                 self.messages.append({
@@ -284,8 +301,8 @@ class ChatHandler:
             total_tokens = usage.get('total_tokens', 0)
 
             # Estimate character counts (rough approximation)
-            eng_chars = total_tokens * 3     # 1 token ≈ 0.3 English chars
-            cn_chars = total_tokens * 1.67   # 1 token ≈ 0.6 Chinese chars
+            eng_chars = total_tokens * 0.75   # 1 token ≈ 0.75 English chars
+            cn_chars = total_tokens * 1.67    # 1 token ≈ 1.67 Chinese chars
 
             # Compose text
             text = (
