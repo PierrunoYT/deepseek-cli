@@ -36,7 +36,7 @@ except ImportError:
     from src.utils.version_checker import check_version
 
 class ChatHandler:
-    def __init__(self, *, stream: bool = False):
+    def __init__(self, *, stream: bool = True):
         self.messages = []
         self.model = "deepseek-chat"
         self.stream = stream
