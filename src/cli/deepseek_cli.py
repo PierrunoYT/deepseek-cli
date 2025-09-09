@@ -35,7 +35,7 @@ except ImportError:
     
 
 class DeepSeekCLI:
-    def __init__(self, *, stream: bool = False):
+    def __init__(self, *, stream: bool = True):
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
@@ -153,11 +153,22 @@ def parse_arguments():
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
     parser.add_argument("-s", "--stream", action="store_true", help="Enable stream mode")
+    parser.add_argument("--no-stream", action="store_true", help="Disable stream mode")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    cli = DeepSeekCLI(stream=args.stream)
+    
+    # Determine stream mode based on command line arguments
+    if args.no_stream:
+        stream_mode = False
+    elif args.stream:
+        stream_mode = True
+    else:
+        # Use default value from class (which is now True)
+        stream_mode = True
+    
+    cli = DeepSeekCLI(stream=stream_mode)
 
     # Check if running in inline mode
     if args.query:
