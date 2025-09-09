@@ -26,7 +26,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 - 🛠️ Advanced Controls
   - Temperature control with presets
   - JSON output mode
-  - Streaming responses
+  - Streaming responses (enabled by default)
   - Function calling
   - Stop sequences
   - Top-p sampling
@@ -131,6 +131,8 @@ Available inline mode options:
 - `-q, --query`: The query to send to the model
 - `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
 - `-r, --raw`: Output raw response without token usage information
+- `-s, --stream`: Enable streaming mode (enabled by default)
+- `--no-stream`: Disable streaming mode
 
 ### Troubleshooting
 
@@ -172,7 +174,7 @@ Beta Features:
 
 Output Control:
 - `/json` - Toggle JSON output mode
-- `/stream` - Toggle streaming mode
+- `/stream` - Toggle streaming mode (streaming is enabled by default)
 - `/stop X` - Add stop sequence
 - `/clearstop` - Clear stop sequences
 
