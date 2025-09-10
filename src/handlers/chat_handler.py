@@ -246,12 +246,13 @@ class ChatHandler:
             return None
 
     def stream_response(self, response: Any) -> str:
-
-        """Handle streaming response"""
+        """Handle streaming response with optimized performance for long content"""
         full_response: str = ""
         chunk_count = 0
+        last_update_length = 0
+        
         try:
-            with Live("", console=self.console, refresh_per_second=8) as live:
+            with Live("", console=self.console, refresh_per_second=6) as live:
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
@@ -260,17 +261,43 @@ class ChatHandler:
                             full_response += content
                             chunk_count += 1
 
-                            # Update display every 3 chunks or if content ends with punctuation
-                            # This reduces object creation while maintaining responsiveness
-                            if chunk_count % 3 == 0 or content.rstrip().endswith(('.', '!', '?', '\n')):
+
+                            response_length = len(full_response)
+                            
+                            # For short responses (< 500 chars): update every 3 chunks
+                            # For medium responses (500-2000 chars): update every 6 chunks  
+                            # For long responses (> 2000 chars): update every 12 chunks or at sentence ends
+                            if response_length < 500:
+                                update_interval = 3
+                            elif response_length < 2000:
+                                update_interval = 6
+                            else:
+                                update_interval = 12
+                            
+                            # Check if update needed
+                            should_update = (
+                                chunk_count % update_interval == 0 or
+                                (response_length > 2000 and content.rstrip().endswith(('.', '!', '?', '\n'))) or
+                                (response_length - last_update_length) > 200  # update every 200 chars
+                            )
+                            
+                            if should_update:
+                                # For very long responses, only render the last portion to avoid lag
+                                if response_length > 3000:
+                                    # Show last 2500 characters with "..." prefix
+                                    display_content = "..." + full_response[-2500:]
+                                else:
+                                    display_content = full_response
+                                
                                 bubble = Panel(
-                                    Markdown(full_response),
+                                    Markdown(display_content),
                                     border_style="bright_blue",
                                     box=box.ROUNDED,
                                     padding=(0, 1),
                                     title="[bold green]AI[/bold green]"
                                 )
                                 live.update(bubble)
+                                last_update_length = response_length
 
                 # Final update to ensure complete response is displayed
                 if full_response:
@@ -282,7 +309,7 @@ class ChatHandler:
                         title="[bold green]AI[/bold green]"
                     )
                     live.update(final_bubble)
-            # self.console.print('\n')
+                    
             if full_response:
                 self.messages.append({
                     "role": "assistant",
