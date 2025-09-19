@@ -1,6 +1,7 @@
 """Chat handler for DeepSeek CLI"""
 
 import json
+import time
 from typing import Optional, Dict, Any, List
 from rich.console import Console
 from rich.markdown import Markdown
@@ -53,6 +54,18 @@ class ChatHandler:
 
         self.console = Console()
 
+        # Streaming output configuration - adjustable as needed
+        self.stream_config = {
+            "buffer_size_chars": 50,      # Buffer size character threshold
+            "buffer_size_tokens": 15,     # Buffer size token threshold
+            "time_threshold": 0.2,        # Time refresh threshold (seconds)
+            "max_visible_chars": 8000,    # Maximum visible characters
+            "scroll_buffer": 1000,        # Scroll buffer
+            "refresh_rate": 8,            # Live refresh rate
+            "min_buffer_for_sentence": 20, # Minimum buffer for sentence end check
+            "min_buffer_for_time": 10,    # Minimum buffer for time threshold check
+            "min_buffer_for_pause": 30,   # Minimum buffer for pause marker check
+        }
 
         # Check for new version
         update_available, current_version, latest_version = check_version()
@@ -246,67 +259,100 @@ class ChatHandler:
             return None
 
     def stream_response(self, response: Any) -> str:
-        """Handle streaming response with optimized performance for long content"""
+        """Handle streaming response with intelligent buffer and refresh strategy"""
         full_response: str = ""
+        buffer: str = ""  # Buffer for collecting data packs
+        
+        config = self.stream_config
+        BUFFER_SIZE_CHARS = config["buffer_size_chars"]
+        TIME_THRESHOLD = config["time_threshold"] 
+        MAX_VISIBLE_CHARS = config["max_visible_chars"]
+        SCROLL_BUFFER = config["scroll_buffer"]
+        REFRESH_RATE = config["refresh_rate"]
+        
+        SENTENCE_ENDS = ('.', '!', '?', '\n', '。', '！', '？')  # Sentence ending markers
+        PAUSE_INDICATORS = (',', ';', '，', '；', '\n')        # Pause markers
+        
         chunk_count = 0
-        last_update_length = 0
+        last_update_time = time.time()
         
         try:
-            with Live("", console=self.console, refresh_per_second=6) as live:
+            with Live("", console=self.console, refresh_per_second=REFRESH_RATE) as live:
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
                         if hasattr(delta, 'content') and delta.content is not None:
                             content: str = delta.content
                             full_response += content
+                            buffer += content  # Add to buffer
                             chunk_count += 1
-
-
+                            current_time = time.time()   # Find the first sentence boundary as the starting point
+                            
+                            buffer_length = len(buffer)
+                            time_since_last_update = current_time - last_update_time
                             response_length = len(full_response)
                             
-                            # For short responses (< 500 chars): update every 3 chunks
-                            # For medium responses (500-2000 chars): update every 6 chunks  
-                            # For long responses (> 2000 chars): update every 12 chunks or at sentence ends
-                            if response_length < 500:
-                                update_interval = 3
-                            elif response_length < 2000:
-                                update_interval = 6
-                            else:
-                                update_interval = 12
+                            should_refresh = False
+                            refresh_reason = ""
                             
-                            # Check if update needed
-                            should_update = (
-                                chunk_count % update_interval == 0 or
-                                (response_length > 2000 and content.rstrip().endswith(('.', '!', '?', '\n'))) or
-                                (response_length - last_update_length) > 200  # update every 200 chars
-                            )
+                            # Condition 1: Buffer reaches character threshold
+                            if buffer_length >= BUFFER_SIZE_CHARS:
+                                should_refresh = True
+                                refresh_reason = "buffer_size"
                             
-                            if should_update:
-                                # For very long responses, only render the last portion to avoid lag
-                                if response_length > 3000:
-                                    # Show last 2500 characters with "..." prefix
-                                    display_content = "..." + full_response[-2500:]
-                                else:
-                                    display_content = full_response
+                            # Condition 2: Buffer contains sentence ending markers and has enough content
+                            elif (buffer_length >= config["min_buffer_for_sentence"] and 
+                                  any(char in buffer for char in SENTENCE_ENDS)):
+                                should_refresh = True
+                                refresh_reason = "sentence_end"
+                            
+                            # Condition 3: Time threshold reached and has content
+                            elif (time_since_last_update >= TIME_THRESHOLD and 
+                                  buffer_length >= config["min_buffer_for_time"]):
+                                should_refresh = True
+                                refresh_reason = "time_threshold"
+                            
+                            # Condition 4: Buffer contains pause markers and has enough content
+                            elif (buffer_length >= config["min_buffer_for_pause"] and 
+                                  any(char in buffer[-5:] for char in PAUSE_INDICATORS)):
+                                should_refresh = True
+                                refresh_reason = "pause_indicator"
+                            
+                            # Condition 5: Force refresh - avoid buffer becoming too large
+                            elif buffer_length >= BUFFER_SIZE_CHARS * 2:
+                                should_refresh = True
+                                refresh_reason = "force_refresh"
+                            
+                            if should_refresh:
+                                # Intelligent display content (avoid truncation, use scrolling window)
+                                display_content = self._prepare_display_content(
+                                    full_response, response_length, MAX_VISIBLE_CHARS, SCROLL_BUFFER
+                                )
                                 
                                 bubble = Panel(
                                     Markdown(display_content),
                                     border_style="bright_blue",
                                     box=box.ROUNDED,
                                     padding=(0, 1),
-                                    title="[bold green]AI[/bold green]"
+                                    title=f"[bold green]AI[/bold green] [dim]({refresh_reason})[/dim]"
                                 )
                                 live.update(bubble)
-                                last_update_length = response_length
+                                
+                                # Reset buffer and time
+                                buffer = ""
+                                last_update_time = current_time
 
-                # Final update to ensure complete response is displayed
                 if full_response:
+                    display_content = self._prepare_final_display_content(
+                        full_response, MAX_VISIBLE_CHARS
+                    )
+                    
                     final_bubble = Panel(
-                        Markdown(full_response),
+                        Markdown(display_content),
                         border_style="bright_blue",
                         box=box.ROUNDED,
                         padding=(0, 1),
-                        title="[bold green]AI[/bold green]"
+                        title="[bold green]AI[/bold green] [dim](complete)[/dim]"
                     )
                     live.update(final_bubble)
                     
@@ -319,6 +365,45 @@ class ChatHandler:
         except Exception as e:
             self.console.print(f"\nError in stream response: {str(e)}")
             return full_response
+    
+    def _prepare_display_content(self, full_response: str, response_length: int, 
+                                max_visible_chars: int, scroll_buffer: int) -> str:
+        """Prepare content to display with intelligent scrolling"""
+        if response_length <= max_visible_chars:
+            return full_response
+        
+        truncate_start = response_length - max_visible_chars + scroll_buffer
+        truncate_content = full_response[truncate_start:]
+        
+        sentence_ends = ('.', '!', '?', '\n', '。', '！', '？')
+        for i, char in enumerate(truncate_content[:200]):  # Search within first 200 characters
+            if char in sentence_ends:
+                truncate_content = truncate_content[i+1:].lstrip()
+                break
+        
+        return "...\n\n" + truncate_content
+    
+    def _prepare_final_display_content(self, full_response: str, max_visible_chars: int) -> str:
+        """Prepare final display content with intelligent handling of overly long content"""
+        if len(full_response) <= max_visible_chars:
+            return full_response
+        
+        start_part = full_response[:2000]
+        end_part = full_response[-(max_visible_chars-2200):]
+        
+        sentence_ends = ('.', '!', '?', '\n', '。', '！', '？')
+        
+        for i in range(len(start_part)-1, max(len(start_part)-200, 0), -1):
+            if start_part[i] in sentence_ends:
+                start_part = start_part[:i+1]
+                break
+        
+        for i, char in enumerate(end_part[:200]):
+            if char in sentence_ends:
+                end_part = end_part[i+1:].lstrip()
+                break
+        
+        return start_part + "\n\n...[Content too long, some parts omitted]...\n\n" + end_part
 
     def display_token_info(self, usage: dict) -> None:
         """Display token usage information"""
@@ -344,6 +429,39 @@ class ChatHandler:
 
             # Print in a nice box
             self.console.print(Panel(text, title="Token Info", border_style="cyan", box=box.ROUNDED))
+    def configure_stream_settings(self, **kwargs) -> Dict[str, Any]:
+        """
+        Dynamically configure streaming output settings
+        
+        Configurable parameters:
+        - buffer_size_chars: Buffer character threshold (default: 50)
+        - time_threshold: Time refresh threshold in seconds (default: 0.2)
+        - max_visible_chars: Maximum visible characters (default: 8000)
+        - refresh_rate: Live refresh rate (default: 8)
+        
+        Returns current configuration
+        """
+        valid_keys = {
+            "buffer_size_chars", "buffer_size_tokens", "time_threshold",
+            "max_visible_chars", "scroll_buffer", "refresh_rate",
+            "min_buffer_for_sentence", "min_buffer_for_time", "min_buffer_for_pause"
+        }
+        
+        updated = {}
+        for key, value in kwargs.items():
+            if key in valid_keys:
+                self.stream_config[key] = value
+                updated[key] = value
+        
+        return {
+            "updated": updated,
+            "current_config": self.stream_config.copy()
+        }
+
+    def get_stream_settings(self) -> Dict[str, Any]:
+        """Get current streaming output configuration"""
+        return self.stream_config.copy()
+
     def add_message(self, role: str, content: str) -> None:
         """Add a message to the conversation history with limit"""
         self.messages.append({"role": role, "content": content})
