@@ -11,8 +11,7 @@ from rich.panel import Panel
 
 # Add proper import paths for both development and installed modes
 try:
-    # When running as an installed package
-    from config.settings import (
+    from deepseek_cli.config.settings import (
         MODEL_CONFIGS,
         TEMPERATURE_PRESETS,
         DEFAULT_MAX_TOKENS,
@@ -21,19 +20,30 @@ try:
         MAX_STOP_SEQUENCES,
         MAX_HISTORY_LENGTH
     )
-    from utils.version_checker import check_version
+    from deepseek_cli.utils.version_checker import check_version
 except ImportError:
-    # When running in development mode
-    from src.config.settings import (
-        MODEL_CONFIGS,
-        TEMPERATURE_PRESETS,
-        DEFAULT_MAX_TOKENS,
-        DEFAULT_TEMPERATURE,
-        MAX_FUNCTIONS,
-        MAX_STOP_SEQUENCES,
-        MAX_HISTORY_LENGTH
-    )
-    from src.utils.version_checker import check_version
+    try:
+        from config.settings import (
+            MODEL_CONFIGS,
+            TEMPERATURE_PRESETS,
+            DEFAULT_MAX_TOKENS,
+            DEFAULT_TEMPERATURE,
+            MAX_FUNCTIONS,
+            MAX_STOP_SEQUENCES,
+            MAX_HISTORY_LENGTH
+        )
+        from utils.version_checker import check_version
+    except ImportError:
+        from src.config.settings import (
+            MODEL_CONFIGS,
+            TEMPERATURE_PRESETS,
+            DEFAULT_MAX_TOKENS,
+            DEFAULT_TEMPERATURE,
+            MAX_FUNCTIONS,
+            MAX_STOP_SEQUENCES,
+            MAX_HISTORY_LENGTH
+        )
+        from src.utils.version_checker import check_version
 
 class ChatHandler:
     def __init__(self, *, stream: bool = False):

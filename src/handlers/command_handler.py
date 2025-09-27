@@ -5,15 +5,18 @@ from typing import Optional, Dict, Any, Tuple
 
 # Add proper import paths for both development and installed modes
 try:
-    # When running as an installed package
-    from api.client import APIClient
-    from handlers.chat_handler import ChatHandler
-    from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+    from deepseek_cli.api.client import APIClient
+    from deepseek_cli.handlers.chat_handler import ChatHandler
+    from deepseek_cli.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 except ImportError:
-    # When running in development mode
-    from src.api.client import APIClient
-    from src.handlers.chat_handler import ChatHandler
-    from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+    try:
+        from api.client import APIClient
+        from handlers.chat_handler import ChatHandler
+        from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+    except ImportError:
+        from src.api.client import APIClient
+        from src.handlers.chat_handler import ChatHandler
+        from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 
 class CommandHandler:
     def __init__(self, api_client: APIClient, chat_handler: ChatHandler):
@@ -22,32 +25,34 @@ class CommandHandler:
 
     def handle_command(self, command: str) -> Tuple[bool, Optional[str]]:
         """Handle CLI commands and return (should_continue, message)"""
-        command = command.strip().lower()  # Normalize input
-        if not command:
+        command_raw = command.strip()
+        if not command_raw:
             return True, None
 
-        if command in ['quit', 'exit']:
+        command_lower = command_raw.lower()
+
+        if command_lower in ['quit', 'exit']:
             return False, "Goodbye!"
 
-        elif command == '/json':
+        elif command_lower == '/json':
             self.chat_handler.toggle_json_mode()
             return True, f"JSON mode {'enabled' if self.chat_handler.json_mode else 'disabled'}"
 
-        elif command == '/stream':
+        elif command_lower == '/stream':
             self.chat_handler.toggle_stream()
             return True, f"Streaming {'enabled' if self.chat_handler.stream else 'disabled'}"
 
-        elif command == '/beta':
+        elif command_lower == '/beta':
             self.api_client.toggle_beta()
             return True, f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'}"
 
-        elif command == '/prefix':
+        elif command_lower == '/prefix':
             if not self.api_client.beta_mode:
                 return True, "Error: Prefix mode requires beta mode. Use /beta first."
             self.chat_handler.prefix_mode = not self.chat_handler.prefix_mode
             return True, f"Prefix mode {'enabled' if self.chat_handler.prefix_mode else 'disabled'}"
 
-        elif command == '/models':
+        elif command_lower == '/models':
             try:
                 response = self.api_client.list_models()
                 if response.data:
@@ -57,76 +62,78 @@ class CommandHandler:
             except Exception as e:
                 return True, f"Error fetching models: {str(e)}"
 
-        elif command.startswith('/model '):
-            model = command.split(' ')[1]
+        elif command_lower.startswith('/model '):
+            parts = command_raw.split(' ', 1)
+            model = parts[1].strip() if len(parts) > 1 else ''
             if self.chat_handler.switch_model(model):
                 return True, f"Switched to {model} model\nMax tokens set to {self.chat_handler.max_tokens}"
             return True, "Invalid model"
 
-        elif command.startswith('/temp '):
-            temp_str = command.split(' ')[1]
+        elif command_lower.startswith('/temp '):
+            parts = command_raw.split(' ', 1)
+            temp_str = parts[1].strip() if len(parts) > 1 else ''
             if self.chat_handler.set_temperature(temp_str):
                 return True, f"Temperature set to {self.chat_handler.temperature}"
             return True, "Invalid temperature value or preset"
 
-        elif command.startswith('/freq '):
+        elif command_lower.startswith('/freq '):
             try:
-                penalty = float(command.split(' ')[1])
+                penalty = float(command_raw.split(' ', 1)[1])
                 if self.chat_handler.set_frequency_penalty(penalty):
                     return True, f"Frequency penalty set to {penalty}"
                 return True, "Frequency penalty must be between -2.0 and 2.0"
-            except ValueError:
+            except (ValueError, IndexError):
                 return True, "Invalid frequency penalty value"
 
-        elif command.startswith('/pres '):
+        elif command_lower.startswith('/pres '):
             try:
-                penalty = float(command.split(' ')[1])
+                penalty = float(command_raw.split(' ', 1)[1])
                 if self.chat_handler.set_presence_penalty(penalty):
                     return True, f"Presence penalty set to {penalty}"
                 return True, "Presence penalty must be between -2.0 and 2.0"
-            except ValueError:
+            except (ValueError, IndexError):
                 return True, "Invalid presence penalty value"
 
-        elif command.startswith('/top_p '):
+        elif command_lower.startswith('/top_p '):
             try:
-                top_p = float(command.split(' ')[1])
+                top_p = float(command_raw.split(' ', 1)[1])
                 if self.chat_handler.set_top_p(top_p):
                     return True, f"Top_p set to {top_p}"
                 return True, "Top_p must be between 0.0 and 1.0"
-            except ValueError:
+            except (ValueError, IndexError):
                 return True, "Invalid top_p value"
 
-        elif command.startswith('/stop '):
-            sequence = command[6:]
+        elif command_lower.startswith('/stop '):
+            sequence = command_raw[6:]
             if self.chat_handler.add_stop_sequence(sequence):
                 return True, f"Stop sequence added: {sequence}"
             return True, "Maximum number of stop sequences reached"
 
-        elif command == '/clearstop':
+        elif command_lower == '/clearstop':
             self.chat_handler.clear_stop_sequences()
             return True, "All stop sequences cleared"
 
-        elif command.startswith('/function '):
+        elif command_lower.startswith('/function '):
             try:
-                function = json.loads(command[10:])
+                function = json.loads(command_raw[10:])
                 if self.chat_handler.add_function(function):
                     return True, f"Function '{function.get('name', 'unnamed')}' added"
                 return True, "Maximum number of functions reached"
             except json.JSONDecodeError:
                 return True, "Invalid JSON format for function definition"
 
-        elif command == '/clearfuncs':
+        elif command_lower == '/clearfuncs':
             self.chat_handler.clear_functions()
             return True, "All functions cleared"
 
-        elif command == '/clear':
+        elif command_lower == '/clear':
             self.chat_handler.clear_history()
             return True, "Conversation history cleared"
 
-        elif command == '/help':
+        elif command_lower == '/help':
             return True, self.get_help_message()
 
-        elif command == '/about':
+        elif command_lower == '/about':
             return True, self.get_about_message()
 
         return None, None

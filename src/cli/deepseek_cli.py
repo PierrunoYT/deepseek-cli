@@ -19,17 +19,21 @@ except ImportError:
 
 # Add proper import paths for both development and installed modes
 try:
-    # When running as an installed package
-    from api.client import APIClient
-    from handlers.chat_handler import ChatHandler
-    from handlers.command_handler import CommandHandler
-    from handlers.error_handler import ErrorHandler
+    from deepseek_cli.api.client import APIClient
+    from deepseek_cli.handlers.chat_handler import ChatHandler
+    from deepseek_cli.handlers.command_handler import CommandHandler
+    from deepseek_cli.handlers.error_handler import ErrorHandler
 except ImportError:
-    # When running in development mode
-    from src.api.client import APIClient
-    from src.handlers.chat_handler import ChatHandler
-    from src.handlers.command_handler import CommandHandler
-    from src.handlers.error_handler import ErrorHandler
+    try:
+        from api.client import APIClient
+        from handlers.chat_handler import ChatHandler
+        from handlers.command_handler import CommandHandler
+        from handlers.error_handler import ErrorHandler
+    except ImportError:
+        from src.api.client import APIClient
+        from src.handlers.chat_handler import ChatHandler
+        from src.handlers.command_handler import CommandHandler
+        from src.handlers.error_handler import ErrorHandler
 
 
     

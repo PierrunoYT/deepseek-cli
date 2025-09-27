@@ -6,4 +6,4 @@ from . import config
 from . import handlers
 from . import utils
 
-__version__ = "0.1.17"
+__version__ = "0.1.22"
