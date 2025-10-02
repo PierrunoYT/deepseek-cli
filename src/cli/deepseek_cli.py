@@ -51,6 +51,10 @@ class DeepSeekCLI:
             # Add user message to history
             self.chat_handler.add_message("user", user_input)
 
+            # Set raw mode in chat handler
+            original_raw_mode = getattr(self.chat_handler, 'raw_mode', False)
+            self.chat_handler.raw_mode = raw
+
             # Prepare request parameters
             kwargs = self.chat_handler.prepare_chat_request()
 
@@ -60,6 +64,10 @@ class DeepSeekCLI:
 
             # Execute request with retry logic
             response = self.error_handler.retry_with_backoff(make_request, self.api_client)
+            
+            # Restore original raw mode
+            self.chat_handler.raw_mode = original_raw_mode
+            
             return response
 
         except Exception as e:

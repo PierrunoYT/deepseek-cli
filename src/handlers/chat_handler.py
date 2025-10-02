@@ -60,16 +60,12 @@ class ChatHandler:
         self.top_p = 1.0
         self.stop_sequences = []
         self.stream_options = {"include_usage": True}
+        self.raw_mode = False
 
         self.console = Console()
 
-
-        # Check for new version
-        update_available, current_version, latest_version = check_version()
-        if update_available:
-            print(f"\n📦 Update available: v{current_version} → v{latest_version}")
-            print("To update, run: pip install --upgrade deepseek-cli")
-            print("For development installation: pip install -e . --upgrade\n")
+        # Check for new version with caching
+        self._check_version_cached()
 
     def set_system_message(self, content: str) -> None:
         """Set or update the system message"""

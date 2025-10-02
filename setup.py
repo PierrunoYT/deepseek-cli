@@ -38,9 +38,9 @@ setup(
         "rich>=14.0.0",
         "pyfiglet>=1.0.3"
     ],
-    entry_points={
+        entry_points={
         "console_scripts": [
-            "deepseek=cli.deepseek_cli:main",
+            "deepseek=deepseek_cli.cli.deepseek_cli:main",
         ],
     },
     package_data={

@@ -95,13 +95,22 @@ class ErrorHandler:
     def retry_with_backoff(self, func: Callable, api_client: Any = None) -> Any:
         """Execute function with exponential backoff retry logic"""
         current_delay = self.retry_delay
-        while True:
+        retry_count = 0
+        
+        while retry_count < self.max_retries:
             try:
                 return func()
             except Exception as e:
+                retry_count += 1
                 result = self.handle_error(e, api_client)
-                if result == "retry":
+                
+                if result == "retry" and retry_count < self.max_retries:
+                    print(f"Retrying... ({retry_count}/{self.max_retries})")
                     time.sleep(current_delay)
                     current_delay = min(current_delay * 2, self.max_retry_delay)
                     continue
-                raise
+                else:
+                    # Max retries reached or error not retryable
+                    if retry_count >= self.max_retries:
+                        print(f"Max retries ({self.max_retries}) exceeded.")
+                    raise
