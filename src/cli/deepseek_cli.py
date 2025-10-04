@@ -87,11 +87,11 @@ class DeepSeekCLI:
             result = self.command_handler.handle_command(user_input)
             
             if result[0] is False:  # Exit
-                print(f"\n{result[1]}")
+                console.print(f"\n{result[1]}")
                 break
             elif result[0] is True:  # Command handled
                 if result[1]:
-                    print(f"\n{result[1]}")
+                    console.print(f"\n{result[1]}")
                 continue
 
             # Get and handle response

@@ -3,28 +3,33 @@
 import json
 from typing import Optional, Dict, Any, Tuple
 
-# Add proper import paths for both development and installed modes
+# Simplified import handling with clear fallback chain
 try:
     from deepseek_cli.api.client import APIClient
     from deepseek_cli.handlers.chat_handler import ChatHandler
     from deepseek_cli.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 except ImportError:
-    try:
-        from api.client import APIClient
-        from handlers.chat_handler import ChatHandler
-        from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
-    except ImportError:
-        from src.api.client import APIClient
-        from src.handlers.chat_handler import ChatHandler
-        from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+    from src.api.client import APIClient
+    from src.handlers.chat_handler import ChatHandler
+    from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 
 class CommandHandler:
-    def __init__(self, api_client: APIClient, chat_handler: ChatHandler):
+    def __init__(self, api_client: APIClient, chat_handler: ChatHandler) -> None:
         self.api_client = api_client
         self.chat_handler = chat_handler
 
-    def handle_command(self, command: str) -> Tuple[bool, Optional[str]]:
-        """Handle CLI commands and return (should_continue, message)"""
+    def handle_command(self, command: str) -> Tuple[Optional[bool], Optional[str]]:
+        """Handle CLI commands and return (should_continue, message)
+        
+        Args:
+            command: The command string to process
+            
+        Returns:
+            Tuple[Optional[bool], Optional[str]]: (should_continue, message)
+                - (False, message): Exit the program
+                - (True, message): Command handled, continue
+                - (None, None): Not a command, process as user input
+        """
         command_raw = command.strip()
         if not command_raw:
             return True, None
@@ -139,7 +144,7 @@ class CommandHandler:
         return None, None
 
     def get_help_message(self) -> str:
-        """Get help message"""
+        """Get help message with all available commands"""
         return """Available commands:
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
@@ -167,7 +172,7 @@ Notes:
     coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5"""
 
     def get_about_message(self) -> str:
-        """Get about message"""
+        """Get about message with API information"""
         return f"""DeepSeek API Information:
   Documentation: {API_DOCS}
   Authentication: Bearer Token

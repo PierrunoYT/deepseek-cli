@@ -1,14 +1,14 @@
 """Version checker for DeepSeek CLI"""
 
 import requests
-import pkg_resources
+from importlib.metadata import version, PackageNotFoundError
 from typing import Optional, Tuple
 
 def get_current_version() -> str:
     """Get the current installed version of deepseek-cli"""
     try:
-        return pkg_resources.get_distribution("deepseek-cli").version
-    except pkg_resources.DistributionNotFound:
+        return version("deepseek-cli")
+    except PackageNotFoundError:
         return "0.0.0"
 
 def get_latest_version() -> Optional[str]:
@@ -26,6 +26,7 @@ def get_latest_version() -> Optional[str]:
 
 def check_version() -> Tuple[bool, str, str]:
     """Check if a new version is available
+    
     Returns:
         Tuple[bool, str, str]: (update_available, current_version, latest_version)
     """
