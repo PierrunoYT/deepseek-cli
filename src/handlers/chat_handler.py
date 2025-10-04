@@ -9,7 +9,7 @@ from rich import box
 from rich.panel import Panel
 
 
-# Add proper import paths for both development and installed modes
+# Simplified import handling with clear fallback chain
 try:
     from deepseek_cli.config.settings import (
         MODEL_CONFIGS,
@@ -22,50 +22,48 @@ try:
     )
     from deepseek_cli.utils.version_checker import check_version
 except ImportError:
-    try:
-        from config.settings import (
-            MODEL_CONFIGS,
-            TEMPERATURE_PRESETS,
-            DEFAULT_MAX_TOKENS,
-            DEFAULT_TEMPERATURE,
-            MAX_FUNCTIONS,
-            MAX_STOP_SEQUENCES,
-            MAX_HISTORY_LENGTH
-        )
-        from utils.version_checker import check_version
-    except ImportError:
-        from src.config.settings import (
-            MODEL_CONFIGS,
-            TEMPERATURE_PRESETS,
-            DEFAULT_MAX_TOKENS,
-            DEFAULT_TEMPERATURE,
-            MAX_FUNCTIONS,
-            MAX_STOP_SEQUENCES,
-            MAX_HISTORY_LENGTH
-        )
-        from src.utils.version_checker import check_version
+    from src.config.settings import (
+        MODEL_CONFIGS,
+        TEMPERATURE_PRESETS,
+        DEFAULT_MAX_TOKENS,
+        DEFAULT_TEMPERATURE,
+        MAX_FUNCTIONS,
+        MAX_STOP_SEQUENCES,
+        MAX_HISTORY_LENGTH
+    )
+    from src.utils.version_checker import check_version
 
 class ChatHandler:
-    def __init__(self, *, stream: bool = False):
-        self.messages = []
-        self.model = "deepseek-chat"
-        self.stream = stream
-        self.json_mode = False
-        self.max_tokens = DEFAULT_MAX_TOKENS
-        self.functions = []
-        self.prefix_mode = False
-        self.temperature = DEFAULT_TEMPERATURE
-        self.frequency_penalty = 0.0
-        self.presence_penalty = 0.0
-        self.top_p = 1.0
-        self.stop_sequences = []
-        self.stream_options = {"include_usage": True}
-        self.raw_mode = False
+    def __init__(self, *, stream: bool = False) -> None:
+        self.messages: List[Dict[str, Any]] = []
+        self.model: str = "deepseek-chat"
+        self.stream: bool = stream
+        self.json_mode: bool = False
+        self.max_tokens: int = DEFAULT_MAX_TOKENS
+        self.functions: List[Dict[str, Any]] = []
+        self.prefix_mode: bool = False
+        self.temperature: float = DEFAULT_TEMPERATURE
+        self.frequency_penalty: float = 0.0
+        self.presence_penalty: float = 0.0
+        self.top_p: float = 1.0
+        self.stop_sequences: List[str] = []
+        self.stream_options: Dict[str, bool] = {"include_usage": True}
+        self.raw_mode: bool = False
 
         self.console = Console()
 
         # Check for new version with caching
         self._check_version_cached()
+
+    def _check_version_cached(self) -> None:
+        """Check for new version and cache the result"""
+        try:
+            update_available, current, latest = check_version()
+            if update_available:
+                self.console.print(f"\n[yellow]New version available: {latest} (current: {current})[/yellow]")
+                self.console.print("[yellow]Update with: pip install --upgrade deepseek-cli[/yellow]\n")
+        except Exception:
+            pass  # Silently fail if version check fails
 
     def set_system_message(self, content: str) -> None:
         """Set or update the system message"""
@@ -163,7 +161,7 @@ class ChatHandler:
 
     def prepare_chat_request(self) -> Dict[str, Any]:
         """Prepare chat completion request parameters"""
-        kwargs = {
+        kwargs: Dict[str, Any] = {
             "model": self.model,
             "messages": self.messages,
             "stream": self.stream,
@@ -202,7 +200,7 @@ class ChatHandler:
 
         return kwargs
 
-    def handle_response(self, response) -> Optional[str]:
+    def handle_response(self, response: Any) -> Optional[str]:
         """Handle API response and extract content"""
         try:
             if not self.stream:
@@ -248,11 +246,10 @@ class ChatHandler:
             else:
                 return self.stream_response(response)
         except Exception as e:
-            print(f"\nUnexpected error: {str(e)}")
+            self.console.print(f"\n[red]Unexpected error: {str(e)}[/red]")
             return None
 
     def stream_response(self, response: Any) -> str:
-
         """Handle streaming response"""
         full_response: str = ""
         chunk_count = 0
@@ -288,7 +285,7 @@ class ChatHandler:
                         title="[bold green]AI[/bold green]"
                     )
                     live.update(final_bubble)
-            # self.console.print('\n')
+
             if full_response:
                 self.messages.append({
                     "role": "assistant",
@@ -296,10 +293,10 @@ class ChatHandler:
                 })
             return full_response
         except Exception as e:
-            self.console.print(f"\nError in stream response: {str(e)}")
+            self.console.print(f"\n[red]Error in stream response: {str(e)}[/red]")
             return full_response
 
-    def display_token_info(self, usage: dict) -> None:
+    def display_token_info(self, usage: Dict[str, int]) -> None:
         """Display token usage information"""
         if usage:
             input_tokens = usage.get('prompt_tokens', 0)
@@ -307,8 +304,8 @@ class ChatHandler:
             total_tokens = usage.get('total_tokens', 0)
 
             # Estimate character counts (rough approximation)
-            eng_chars = total_tokens * 0.75   # 1 token ≈ 0.75 English chars
-            cn_chars = total_tokens * 1.67    # 1 token ≈ 1.67 Chinese chars
+            eng_chars = int(total_tokens * 0.75)   # 1 token ≈ 0.75 English chars
+            cn_chars = int(total_tokens * 1.67)    # 1 token ≈ 1.67 Chinese chars
 
             # Compose text
             text = (
@@ -323,6 +320,7 @@ class ChatHandler:
 
             # Print in a nice box
             self.console.print(Panel(text, title="Token Info", border_style="cyan", box=box.ROUNDED))
+
     def add_message(self, role: str, content: str) -> None:
         """Add a message to the conversation history with limit"""
         self.messages.append({"role": role, "content": content})

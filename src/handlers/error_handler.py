@@ -4,26 +4,22 @@ import time
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError
 
-# Add proper import paths for both development and installed modes
+# Simplified import handling with clear fallback chain
 try:
     from deepseek_cli.utils.exceptions import RateLimitExceeded
     from deepseek_cli.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 except ImportError:
-    try:
-        from utils.exceptions import RateLimitExceeded
-        from config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
-    except ImportError:
-        from src.utils.exceptions import RateLimitExceeded
-        from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+    from src.utils.exceptions import RateLimitExceeded
+    from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 
 class ErrorHandler:
-    def __init__(self, max_retries: int = 3):
+    def __init__(self, max_retries: int = 3) -> None:
         self.max_retries = max_retries
         self.retry_delay = DEFAULT_RETRY_DELAY
         self.max_retry_delay = DEFAULT_MAX_RETRY_DELAY
 
         # Define error messages for each status code
-        self.status_messages = {
+        self.status_messages: Dict[int, Dict[str, str]] = {
             400: {
                 "message": "Bad request - check your input parameters",
                 "solution": "Verify your request format and parameters"
@@ -55,7 +51,15 @@ class ErrorHandler:
         }
 
     def handle_error(self, e: APIError, api_client: Any = None) -> Optional[str]:
-        """Handle API errors with detailed messages"""
+        """Handle API errors with detailed messages
+        
+        Args:
+            e: The API error to handle
+            api_client: Optional API client for key updates
+            
+        Returns:
+            Optional[str]: "retry" if the error should be retried, None otherwise
+        """
         status_code = getattr(e, 'status_code', None)
         error_code = getattr(e, 'code', None)
 
@@ -93,7 +97,18 @@ class ErrorHandler:
         return None
 
     def retry_with_backoff(self, func: Callable, api_client: Any = None) -> Any:
-        """Execute function with exponential backoff retry logic"""
+        """Execute function with exponential backoff retry logic
+        
+        Args:
+            func: The function to execute with retry logic
+            api_client: Optional API client for error handling
+            
+        Returns:
+            Any: The result of the function call
+            
+        Raises:
+            Exception: Re-raises the exception if max retries exceeded or error not retryable
+        """
         current_delay = self.retry_delay
         retry_count = 0
         
