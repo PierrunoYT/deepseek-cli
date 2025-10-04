@@ -8,6 +8,10 @@ API_AUTH_TYPE = "Bearer"
 API_DOCS = "https://api-docs.deepseek.com/api/create-chat-completion"
 API_BALANCE_ENDPOINT = "https://api-docs.deepseek.com/api/get-user-balance"
 
+# API URLs
+DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
+ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
+
 # Feature configurations
 FEATURE_CONFIGS = {
     "prefix_completion": {
@@ -26,7 +30,9 @@ FEATURE_CONFIGS = {
     "context_cache": {
         "enabled_by_default": True,
         "min_cache_tokens": 64,
-        "description": "Automatic context caching for better performance"
+        "cache_hit_price_per_million": 0.014,  # $0.014 per million tokens
+        "cache_miss_price_per_million": 0.14,  # $0.14 per million tokens
+        "description": "Automatic context caching on disk for better performance and cost savings"
     }
 }
 
@@ -34,18 +40,43 @@ FEATURE_CONFIGS = {
 MODEL_CONFIGS = {
     "deepseek-chat": {
         "name": "deepseek-chat",
-        "max_tokens": 8192,
-        "description": "DeepSeek-V2.5 Chat model with 8K token output limit"
+        "version": "DeepSeek-V3.1",
+        "mode": "Non-thinking Mode",
+        "context_length": 128000,  # 128K context
+        "max_tokens": 8192,  # Default 4K, Maximum 8K
+        "default_max_tokens": 4096,
+        "description": "DeepSeek-V3.1 Chat model (Non-thinking Mode) with 128K context",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_prefix_completion": True,
+        "supports_fim": True
     },
     "deepseek-coder": {
         "name": "deepseek-coder",
-        "max_tokens": 8192,
-        "description": "DeepSeek-V2.5 Coder model optimized for code generation"
+        "version": "DeepSeek-V2.5",
+        "context_length": 128000,  # Assuming same as chat
+        "max_tokens": 8192,  # Default 4K, Maximum 8K
+        "default_max_tokens": 4096,
+        "description": "DeepSeek-V2.5 Coder (merged with chat model, may be deprecated)",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_prefix_completion": True,
+        "supports_fim": True,
+        "note": "This model was merged into DeepSeek-V2.5 and may redirect to deepseek-chat"
     },
     "deepseek-reasoner": {
         "name": "deepseek-reasoner",
-        "max_tokens": 8192,
-        "description": "DeepSeek-R1 with 64K context and 8K output limit"
+        "version": "DeepSeek-V3.1",
+        "mode": "Thinking Mode",
+        "context_length": 128000,  # 128K context
+        "max_tokens": 64000,  # Default 32K, Maximum 64K
+        "default_max_tokens": 32000,
+        "description": "DeepSeek-V3.1 Reasoning model (Thinking Mode) with 128K context",
+        "supports_json": True,
+        "supports_function_calling": False,  # Not supported, falls back to deepseek-chat if tools provided
+        "supports_prefix_completion": True,
+        "supports_fim": False,
+        "has_reasoning_content": True  # Special field for reasoning output
     }
 }
 
@@ -64,8 +95,6 @@ DEFAULT_TEMPERATURE = 1.0
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 1
 DEFAULT_MAX_RETRY_DELAY = 16
-DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
-DEFAULT_BETA_URL = "https://api.deepseek.com/beta"
 
 # API Limits
 MAX_FUNCTIONS = 128

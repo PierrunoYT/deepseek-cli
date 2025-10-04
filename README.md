@@ -7,27 +7,29 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 ## Features
 
 - 🤖 Multiple Model Support
-  - DeepSeek-V3 (deepseek-chat)
-  - DeepSeek-R1 (deepseek-reasoner)
-  - DeepSeek Coder (deepseek-coder)
+  - DeepSeek-V3.1 (deepseek-chat) - Non-thinking Mode
+  - DeepSeek-V3.1 (deepseek-reasoner) - Thinking Mode with Chain of Thought
+  - DeepSeek-V2.5 Coder (deepseek-coder)
 
 - 🔄 Advanced Conversation Features
   - Multi-round conversations with context preservation
   - System message customization
   - Conversation history tracking
-  - Context caching for better performance
+  - Context caching for better performance and cost savings
   - Inline mode for quick queries
+  - 128K context window for all models
 
 - 🧪 Beta Features
   - Prefix Completion: Complete assistant messages from a given prefix
   - Fill-in-the-Middle (FIM): Complete content between a prefix and suffix
-  - Context Caching: Automatic caching for better performance
+  - Context Caching: Automatic disk-based caching with up to 90% cost savings
+  - Anthropic API Compatibility: Use DeepSeek models with Anthropic API format
 
 - 🛠️ Advanced Controls
   - Temperature control with presets
   - JSON output mode
   - Streaming responses (enabled by default)
-  - Function calling
+  - Function calling (up to 128 functions)
   - Stop sequences
   - Top-p sampling
   - Frequency and presence penalties
@@ -184,11 +186,15 @@ Function Calling:
 
 ### Model-Specific Features
 
-#### DeepSeek-V3 (deepseek-chat)
-- 64K context length (64,000 tokens)
-- Default max output: 4096 tokens
-- Beta max output: 8192 tokens (requires beta mode)
-- Supports all features
+#### DeepSeek-V3.1 (deepseek-chat)
+- **Version**: DeepSeek-V3.1 (Non-thinking Mode)
+- **Context Length**: 128K tokens (128,000 tokens)
+- **Output Length**: Default 4K, Maximum 8K tokens
+- **Supports all features**:
+  - JSON Output ✓
+  - Function Calling ✓ (up to 128 functions)
+  - Chat Prefix Completion (Beta) ✓
+  - Fill-in-the-Middle (Beta) ✓
 - General-purpose chat model
 - Latest improvements:
   - Enhanced instruction following (77.6% IFEval accuracy)
@@ -196,19 +202,29 @@ Function Calling:
   - Advanced reasoning capabilities
   - Role-playing capabilities
 
-#### DeepSeek-R1 (deepseek-reasoner)
-- 64K context length
-- 8K output tokens
-- 32K Chain of Thought output
-- Excels at complex reasoning
-- Unsupported features: function calling, JSON output, FIM
-- Unsupported parameters: temperature, top_p, presence/frequency penalties
+#### DeepSeek-V3.1 (deepseek-reasoner)
+- **Version**: DeepSeek-V3.1 (Thinking Mode)
+- **Context Length**: 128K tokens (128,000 tokens)
+- **Output Length**: Default 32K, Maximum 64K tokens
+- **Chain of Thought**: Displays reasoning process before final answer
+- **Supported features**:
+  - JSON Output ✓
+  - Chat Prefix Completion (Beta) ✓
+- **Unsupported features**:
+  - Function Calling ✗ (automatically falls back to deepseek-chat if tools provided)
+  - Fill-in-the-Middle ✗
+  - Temperature, top_p, presence/frequency penalties ✗
+- Excels at complex reasoning and problem-solving tasks
 
-#### DeepSeek Coder (deepseek-coder)
-- Default max output: 4096 tokens
-- Beta max output: 8192 tokens (requires beta mode)
-- Optimized for code generation
-- Supports all features
+#### DeepSeek-V2.5 Coder (deepseek-coder)
+- **Context Length**: 128K tokens
+- **Output Length**: Default 4K, Maximum 8K tokens
+- **Supports all features**:
+  - JSON Output ✓
+  - Function Calling ✓
+  - Chat Prefix Completion (Beta) ✓
+  - Fill-in-the-Middle (Beta) ✓
+- Optimized for code generation and analysis
 
 ### Feature Details
 
@@ -231,10 +247,70 @@ Forces model to output valid JSON. Example system message:
 ```
 
 #### Context Caching
-- Automatically caches context for better performance
-- Minimum cache size: 64 tokens
-- Cache hits reduce token costs
+- **Automatic disk-based caching** for all users
+- **No code changes required** - works automatically
+- **Minimum cache size**: 64 tokens
+- **Pricing**:
+  - Cache hits: $0.014 per million tokens (90% savings)
+  - Cache misses: $0.14 per million tokens (standard rate)
+- **Performance benefits**:
+  - Significantly reduces first token latency for long, repetitive inputs
+  - Example: 128K prompt reduced from 13s to 500ms
+- **Best use cases**:
+  - Q&A assistants with long preset prompts
+  - Role-play with extensive character settings
+  - Data analysis with recurring queries on same documents
+  - Code analysis and debugging with repeated repository references
+  - Few-shot learning with multiple examples
 - Enabled by default
+
+#### Anthropic API Compatibility
+DeepSeek API now supports Anthropic API format, enabling integration with tools like Claude Code:
+
+**Setup for Claude Code:**
+```bash
+# Install Claude Code
+npm install -g @anthropic-ai/claude-code
+
+# Configure environment variables
+export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
+export ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}
+export ANTHROPIC_MODEL=deepseek-chat
+export ANTHROPIC_SMALL_FAST_MODEL=deepseek-chat
+
+# Run in your project
+cd my-project
+claude
+```
+
+**Python SDK Example:**
+```python
+import anthropic
+
+client = anthropic.Anthropic(
+    base_url="https://api.deepseek.com/anthropic",
+    api_key="your-deepseek-api-key"
+)
+
+message = client.messages.create(
+    model="deepseek-chat",
+    max_tokens=1000,
+    system="You are a helpful assistant.",
+    messages=[
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": "Hi, how are you?"}]
+        }
+    ]
+)
+print(message.content)
+```
+
+**Supported Fields:**
+- ✓ model, max_tokens, stop_sequences, stream, system
+- ✓ temperature (range 0.0-2.0), top_p
+- ✓ tools (function calling)
+- ✗ thinking, top_k, mcp_servers (ignored)
 
 ## Temperature Presets
 

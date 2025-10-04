@@ -12,9 +12,13 @@ except ImportError:
     from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
     from src.utils.exceptions import DeepSeekError
 
+# Anthropic API compatibility
+ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
+
 class APIClient:
-    def __init__(self) -> None:
+    def __init__(self, use_anthropic: bool = False) -> None:
         self.api_key = self._get_api_key()
+        self.use_anthropic = use_anthropic
         self.client = self._create_client()
         self.beta_mode = False
 
@@ -31,9 +35,10 @@ class APIClient:
     def _create_client(self) -> OpenAI:
         """Create OpenAI client with DeepSeek configuration"""
         try:
+            base_url = ANTHROPIC_BASE_URL if self.use_anthropic else DEFAULT_BASE_URL
             return OpenAI(
                 api_key=self.api_key,
-                base_url=DEFAULT_BASE_URL
+                base_url=base_url
             )
         except Exception as e:
             raise DeepSeekError(f"Failed to initialize API client: {str(e)}")
@@ -41,7 +46,13 @@ class APIClient:
     def toggle_beta(self) -> None:
         """Toggle beta mode and update base URL"""
         self.beta_mode = not self.beta_mode
-        self.client.base_url = DEFAULT_BETA_URL if self.beta_mode else DEFAULT_BASE_URL
+        if not self.use_anthropic:
+            self.client.base_url = DEFAULT_BETA_URL if self.beta_mode else DEFAULT_BASE_URL
+
+    def toggle_anthropic(self) -> None:
+        """Toggle Anthropic API compatibility mode"""
+        self.use_anthropic = not self.use_anthropic
+        self.client = self._create_client()
 
     def list_models(self) -> Dict[str, Any]:
         """List available models"""

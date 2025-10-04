@@ -214,6 +214,19 @@ class ChatHandler:
 
                 message = choice.message
                 content = message.content if hasattr(message, 'content') else None
+                
+                # Handle reasoning content for deepseek-reasoner model
+                reasoning_content = None
+                if hasattr(message, 'reasoning_content') and message.reasoning_content:
+                    reasoning_content = message.reasoning_content
+                    if not self.raw_mode:
+                        self.console.print(Panel(
+                            Markdown(f"**Reasoning Process:**\n\n{reasoning_content}"),
+                            border_style="yellow",
+                            box=box.ROUNDED,
+                            padding=(0, 1),
+                            title="[bold yellow]Chain of Thought[/bold yellow]"
+                        ))
 
                 # Handle tool calls (function calling)
                 if hasattr(message, "tool_calls") and message.tool_calls:
@@ -252,12 +265,28 @@ class ChatHandler:
     def stream_response(self, response: Any) -> str:
         """Handle streaming response"""
         full_response: str = ""
+        reasoning_content: str = ""
         chunk_count = 0
         try:
             with Live("", console=self.console, refresh_per_second=8) as live:
                 for chunk in response:
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
+                        
+                        # Handle reasoning content for deepseek-reasoner
+                        if hasattr(delta, 'reasoning_content') and delta.reasoning_content is not None:
+                            reasoning_content += delta.reasoning_content
+                            if not self.raw_mode:
+                                reasoning_bubble = Panel(
+                                    Markdown(f"**Reasoning Process:**\n\n{reasoning_content}"),
+                                    border_style="yellow",
+                                    box=box.ROUNDED,
+                                    padding=(0, 1),
+                                    title="[bold yellow]Chain of Thought[/bold yellow]"
+                                )
+                                live.update(reasoning_bubble)
+                        
+                        # Handle regular content
                         if hasattr(delta, 'content') and delta.content is not None:
                             content: str = delta.content
                             full_response += content

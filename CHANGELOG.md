@@ -5,6 +5,81 @@ All notable changes to the DeepSeek CLI project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-01-04
+
+### Added
+
+#### DeepSeek V3.1 API Support
+
+- **Updated Model Configurations**:
+  - DeepSeek-V3.1 (deepseek-chat) - Non-thinking Mode with 128K context
+  - DeepSeek-V3.1 (deepseek-reasoner) - Thinking Mode with 128K context
+  - All models now support 128K context window (128,000 tokens)
+
+- **Enhanced Output Limits**:
+  - deepseek-chat: Default 4K, Maximum 8K tokens
+  - deepseek-reasoner: Default 32K, Maximum 64K tokens
+  - deepseek-coder: Default 4K, Maximum 8K tokens
+
+- **Reasoning Model Enhancements**:
+  - Added support for `reasoning_content` field in deepseek-reasoner responses
+  - Display Chain of Thought reasoning process in both streaming and non-streaming modes
+  - Automatic fallback to deepseek-chat when function calling is requested with deepseek-reasoner
+
+- **Anthropic API Compatibility**:
+  - Added support for Anthropic API format at `https://api.deepseek.com/anthropic`
+  - New `use_anthropic` parameter in APIClient for Anthropic API mode
+  - `toggle_anthropic()` method to switch between standard and Anthropic API
+  - Compatible with Claude Code and other Anthropic-based tools
+
+- **Enhanced Context Caching**:
+  - Updated pricing information: $0.014/M tokens for cache hits, $0.14/M tokens for cache misses
+  - Documented disk-based caching with up to 90% cost savings
+  - Performance improvements: 128K prompt latency reduced from 13s to 500ms
+
+### Changed
+
+- **Model Configuration Updates**:
+  - Updated all model configs with version information and feature support flags
+  - Added `context_length`, `default_max_tokens`, and feature support indicators
+  - Reorganized model metadata for better clarity
+
+- **API Client Improvements**:
+  - Enhanced `_create_client()` to support Anthropic API base URL
+  - Updated `toggle_beta()` to respect Anthropic API mode
+  - Improved error handling for API initialization
+
+- **Chat Handler Updates**:
+  - Enhanced `handle_response()` to display reasoning content from deepseek-reasoner
+  - Updated `stream_response()` to handle reasoning_content in streaming mode
+  - Added visual distinction for Chain of Thought output (yellow panel)
+
+- **Configuration Updates**:
+  - Moved API URLs to top of settings file for better organization
+  - Added `ANTHROPIC_BASE_URL` constant
+  - Enhanced context cache configuration with pricing details
+
+### Documentation
+
+- **README Updates**:
+  - Updated feature list to reflect V3.1 capabilities
+  - Added detailed model specifications with 128K context information
+  - Documented Anthropic API compatibility with setup examples
+  - Enhanced context caching documentation with pricing and use cases
+  - Updated model-specific features section with comprehensive details
+
+- **API Documentation**:
+  - Added examples for Anthropic API integration
+  - Documented supported and unsupported fields for Anthropic compatibility
+  - Included Claude Code integration guide
+
+### Technical Details
+
+- All changes maintain backward compatibility
+- No breaking changes to existing API
+- Automatic handling of new features without user intervention
+- Enhanced error messages for better debugging
+
 ## [0.1.24] - 2025-01-04
 
 ### Changed
