@@ -2,22 +2,18 @@
 
 import os
 from openai import OpenAI
-from typing import Dict, Any
+from typing import Dict, Any, List
 
-# Add proper import paths for both development and installed modes
+# Simplified import handling with clear fallback chain
 try:
     from deepseek_cli.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
     from deepseek_cli.utils.exceptions import DeepSeekError
 except ImportError:
-    try:
-        from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-        from utils.exceptions import DeepSeekError
-    except ImportError:
-        from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-        from src.utils.exceptions import DeepSeekError
+    from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+    from src.utils.exceptions import DeepSeekError
 
 class APIClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_key = self._get_api_key()
         self.client = self._create_client()
         self.beta_mode = False
@@ -27,7 +23,9 @@ class APIClient:
         """Get API key from environment variable or prompt user"""
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            api_key = input("Please enter your DeepSeek API key: ")
+            api_key = input("Please enter your DeepSeek API key: ").strip()
+            if not api_key:
+                raise DeepSeekError("API key cannot be empty")
         return api_key
 
     def _create_client(self) -> OpenAI:
@@ -47,16 +45,37 @@ class APIClient:
 
     def list_models(self) -> Dict[str, Any]:
         """List available models"""
-        return self.client.models.list()
+        try:
+            return self.client.models.list()
+        except Exception as e:
+            raise DeepSeekError(f"Failed to list models: {str(e)}")
 
-    def create_chat_completion(self, **kwargs) -> Any:
-        """Create a chat completion with proper function handling"""
+    def create_chat_completion(self, **kwargs: Any) -> Any:
+        """Create a chat completion with proper function handling
+        
+        Args:
+            **kwargs: Arguments to pass to the chat completion API
+            
+        Returns:
+            Chat completion response
+        """
         # Convert functions to tools format for compatibility
         if "functions" in kwargs:
-            kwargs["tools"] = [{"type": "function", "function": f} for f in kwargs.pop("functions")]
-        return self.client.chat.completions.create(**kwargs)
+            functions: List[Dict[str, Any]] = kwargs.pop("functions")
+            kwargs["tools"] = [{"type": "function", "function": f} for f in functions]
+        
+        try:
+            return self.client.chat.completions.create(**kwargs)
+        except Exception as e:
+            raise DeepSeekError(f"Failed to create chat completion: {str(e)}")
 
     def update_api_key(self, new_key: str) -> None:
-        """Update API key and recreate client"""
-        self.api_key = new_key
+        """Update API key and recreate client
+        
+        Args:
+            new_key: The new API key to use
+        """
+        if not new_key or not new_key.strip():
+            raise DeepSeekError("API key cannot be empty")
+        self.api_key = new_key.strip()
         self.client = self._create_client()
