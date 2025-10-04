@@ -2,7 +2,7 @@
 
 import json
 import argparse
-from typing import Optional
+from typing import Optional, Tuple
 from rich.console import Console
 from rich.panel import Panel
 from rich import box
@@ -11,35 +11,31 @@ from rich.markdown import Markdown
 from rich.prompt import Prompt
 from rich.text import Text
 from pyfiglet import Figlet
+
 console = Console()
+
 try:
     import readline  # noqa
 except ImportError:
     pass
 
-# Add proper import paths for both development and installed modes
+# Simplified import handling with clear fallback chain
 try:
     from deepseek_cli.api.client import APIClient
     from deepseek_cli.handlers.chat_handler import ChatHandler
     from deepseek_cli.handlers.command_handler import CommandHandler
     from deepseek_cli.handlers.error_handler import ErrorHandler
 except ImportError:
-    try:
-        from api.client import APIClient
-        from handlers.chat_handler import ChatHandler
-        from handlers.command_handler import CommandHandler
-        from handlers.error_handler import ErrorHandler
-    except ImportError:
-        from src.api.client import APIClient
-        from src.handlers.chat_handler import ChatHandler
-        from src.handlers.command_handler import CommandHandler
-        from src.handlers.error_handler import ErrorHandler
+    from src.api.client import APIClient
+    from src.handlers.chat_handler import ChatHandler
+    from src.handlers.command_handler import CommandHandler
+    from src.handlers.error_handler import ErrorHandler
 
 
     
 
 class DeepSeekCLI:
-    def __init__(self, *, stream: bool = False):
+    def __init__(self, *, stream: bool = False) -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
@@ -70,11 +66,14 @@ class DeepSeekCLI:
             
             return response
 
+        except (KeyError, ValueError, TypeError) as e:
+            console.print(f"[red]Error processing request: {str(e)}[/red]")
+            return None
         except Exception as e:
-            print(f"\nUnexpected error: {str(e)}")
+            console.print(f"[red]Unexpected error: {str(e)}[/red]")
             return None
 
-    def run(self):
+    def run(self) -> None:
         """Run the CLI interface"""
         # Set initial system message
         self.chat_handler.set_system_message("You are a helpful assistant.")
@@ -102,9 +101,9 @@ class DeepSeekCLI:
                     try:
                         # Pretty print JSON response
                         parsed = json.loads(assistant_response)
-                        print("\nAssistant:", json.dumps(parsed, indent=2))
+                        console.print("\n[bold cyan]Assistant:[/bold cyan]", json.dumps(parsed, indent=2))
                     except json.JSONDecodeError:
-                        print("\nAssistant:", assistant_response)
+                        console.print("\n[bold cyan]Assistant:[/bold cyan]", assistant_response)
                 elif not self.chat_handler.stream:
                     # print("\nAssistant:", assistant_response)
                     pass
@@ -120,8 +119,12 @@ class DeepSeekCLI:
 
         # Get and return response
         return self.get_completion(query, raw=raw) or "Error: Failed to get response"
-    def _print_welcome(self, style = 'simple'):
-        """Display a stylish welcome banner."""
+    def _print_welcome(self, style: str = 'simple') -> None:
+        """Display a stylish welcome banner.
+        
+        Args:
+            style: Banner style - 'simple' for minimal or 'fancy' for ASCII art
+        """
 
         if style == 'simple': 
             panel = Panel(
@@ -157,7 +160,7 @@ class DeepSeekCLI:
             console.print(welcome_panel)
             console.print()
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models")
     parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
@@ -167,7 +170,7 @@ def parse_arguments():
     parser.add_argument("-s", "--stream", action="store_true", help="Enable stream mode")
     return parser.parse_args()
 
-def main():
+def main() -> None:
     args = parse_arguments()
     cli = DeepSeekCLI(stream=args.stream)
 
