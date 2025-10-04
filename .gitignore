@@ -63,6 +63,7 @@ venv.bak/
 issues_and_fixes.md
 IMPROVEMENTS.md
 TASKS.md
+DEPLOY.md
 
 # OS specific
 .DS_Store
