@@ -30,13 +30,13 @@ setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        "openai>=1.0.0",
-        "requests>=2.31.0",
-        "typing-extensions>=4.7.0",
-        "pydantic>=2.0.0",
-        "setuptools>=42.0.0",
-        "rich>=14.0.0",
-        "pyfiglet>=1.0.3"
+        "openai>=1.0.0,<2.0.0",
+        "requests>=2.31.0,<3.0.0",
+        "typing-extensions>=4.7.0,<5.0.0",
+        "pydantic>=2.0.0,<3.0.0",
+        "setuptools>=42.0.0,<76.0.0",
+        "rich>=14.0.0,<15.0.0",
+        "pyfiglet>=1.0.3,<2.0.0"
     ],
     entry_points={
         "console_scripts": [

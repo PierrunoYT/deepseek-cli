@@ -1,6 +1,7 @@
 """Error handler for DeepSeek CLI"""
 
 import time
+import getpass
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError
 
@@ -75,7 +76,7 @@ class ErrorHandler:
                 # Prompt for new API key on authentication failure
                 new_key = input("\nWould you like to enter a new API key? (y/n): ")
                 if new_key.lower() == 'y':
-                    api_client.update_api_key(input("Please enter your new DeepSeek API key: "))
+                    api_client.update_api_key(getpass.getpass("Please enter your new DeepSeek API key: ").strip())
                     return "retry"
             elif status_code in [500, 503]:
                 # Offer automatic retry for server errors

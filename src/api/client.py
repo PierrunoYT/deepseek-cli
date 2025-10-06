@@ -1,6 +1,7 @@
 """DeepSeek API client handler"""
 
 import os
+import getpass
 from openai import OpenAI
 from typing import Dict, Any
 
@@ -22,11 +23,16 @@ class APIClient:
 
     @staticmethod
     def _get_api_key() -> str:
-        """Get API key from environment variable or prompt user"""
-        api_key = os.getenv("DEEPSEEK_API_KEY")
-        if not api_key:
-            api_key = input("Please enter your DeepSeek API key: ")
-        return api_key
+        """Get API key from environment variable or secure prompt"""
+        env_value = os.getenv("DEEPSEEK_API_KEY")
+        if env_value and env_value.strip():
+            return env_value.strip()
+
+        # Fallback to secure, non-echoing prompt
+        while True:
+            api_key = getpass.getpass("Please enter your DeepSeek API key: ").strip()
+            if api_key:
+                return api_key
 
     def _create_client(self) -> OpenAI:
         """Create OpenAI client with DeepSeek configuration"""
