@@ -3,6 +3,7 @@
 import time
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError
+from rich.console import Console
 
 # Simplified import handling with clear fallback chain
 try:
@@ -17,6 +18,7 @@ class ErrorHandler:
         self.max_retries = max_retries
         self.retry_delay = DEFAULT_RETRY_DELAY
         self.max_retry_delay = DEFAULT_MAX_RETRY_DELAY
+        self.console = Console()
 
         # Define error messages for each status code
         self.status_messages: Dict[int, Dict[str, str]] = {
@@ -66,15 +68,15 @@ class ErrorHandler:
         # Handle rate limit errors with retry
         if isinstance(e, RateLimitError) or status_code == 429:
             retry_after = int(getattr(e, 'headers', {}).get('retry-after', self.retry_delay))
-            print(f"\nRate limit exceeded. Retrying in {retry_after} seconds...")
+            self.console.print(f"\n[yellow]Rate limit exceeded. Retrying in {retry_after} seconds...[/yellow]")
             time.sleep(retry_after)
             return "retry"
 
         # Handle other status codes
         if status_code in self.status_messages:
             error_info = self.status_messages[status_code]
-            print(f"\nError ({status_code}): {error_info['message']}")
-            print(f"Solution: {error_info['solution']}")
+            self.console.print(f"\n[red]Error ({status_code}): {error_info['message']}[/red]")
+            self.console.print(f"[cyan]Solution: {error_info['solution']}[/cyan]")
 
             # Special handling for specific error codes
             if status_code == 401 and api_client:
@@ -90,9 +92,9 @@ class ErrorHandler:
                     return "retry"
         else:
             # Handle unknown errors
-            print(f"\nUnexpected API Error (Code {status_code}): {str(e)}")
+            self.console.print(f"\n[red]Unexpected API Error (Code {status_code}): {str(e)}[/red]")
             if error_code:
-                print(f"Error code: {error_code}")
+                self.console.print(f"[red]Error code: {error_code}[/red]")
 
         return None
 
@@ -120,12 +122,12 @@ class ErrorHandler:
                 result = self.handle_error(e, api_client)
                 
                 if result == "retry" and retry_count < self.max_retries:
-                    print(f"Retrying... ({retry_count}/{self.max_retries})")
+                    self.console.print(f"[yellow]Retrying... ({retry_count}/{self.max_retries})[/yellow]")
                     time.sleep(current_delay)
                     current_delay = min(current_delay * 2, self.max_retry_delay)
                     continue
                 else:
                     # Max retries reached or error not retryable
                     if retry_count >= self.max_retries:
-                        print(f"Max retries ({self.max_retries}) exceeded.")
+                        self.console.print(f"[red]Max retries ({self.max_retries}) exceeded.[/red]")
                     raise

@@ -10,6 +10,7 @@ API_BALANCE_ENDPOINT = "https://api-docs.deepseek.com/api/get-user-balance"
 
 # API URLs
 DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
+DEFAULT_BETA_URL = "https://api.deepseek.com/beta"
 ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
 
 # Feature configurations
