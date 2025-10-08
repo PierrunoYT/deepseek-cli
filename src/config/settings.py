@@ -37,49 +37,176 @@ FEATURE_CONFIGS = {
     }
 }
 
-# Model configurations
+# Model configurations with LiteLLM format
 MODEL_CONFIGS = {
-    "deepseek-chat": {
-        "name": "deepseek-chat",
+    # DeepSeek Models
+    "deepseek/deepseek-chat": {
+        "name": "deepseek/deepseek-chat",
+        "display_name": "DeepSeek Chat",
+        "provider": "deepseek",
         "version": "DeepSeek-V3.1",
         "mode": "Non-thinking Mode",
-        "context_length": 128000,  # 128K context
-        "max_tokens": 8192,  # Default 4K, Maximum 8K
+        "context_length": 128000,
+        "max_tokens": 8192,
         "default_max_tokens": 4096,
         "description": "DeepSeek-V3.1 Chat model (Non-thinking Mode) with 128K context",
         "supports_json": True,
         "supports_function_calling": True,
-        "supports_prefix_completion": True,
-        "supports_fim": True
+        "supports_streaming": True
     },
-    "deepseek-coder": {
-        "name": "deepseek-coder",
+    "deepseek/deepseek-coder": {
+        "name": "deepseek/deepseek-coder",
+        "display_name": "DeepSeek Coder",
+        "provider": "deepseek",
         "version": "DeepSeek-V2.5",
-        "context_length": 128000,  # Assuming same as chat
-        "max_tokens": 8192,  # Default 4K, Maximum 8K
+        "context_length": 128000,
+        "max_tokens": 8192,
         "default_max_tokens": 4096,
-        "description": "DeepSeek-V2.5 Coder (merged with chat model, may be deprecated)",
+        "description": "DeepSeek-V2.5 Coder model optimized for code generation",
         "supports_json": True,
         "supports_function_calling": True,
-        "supports_prefix_completion": True,
-        "supports_fim": True,
-        "note": "This model was merged into DeepSeek-V2.5 and may redirect to deepseek-chat"
+        "supports_streaming": True
     },
-    "deepseek-reasoner": {
-        "name": "deepseek-reasoner",
+    "deepseek/deepseek-reasoner": {
+        "name": "deepseek/deepseek-reasoner",
+        "display_name": "DeepSeek Reasoner",
+        "provider": "deepseek",
         "version": "DeepSeek-V3.1",
         "mode": "Thinking Mode",
-        "context_length": 128000,  # 128K context
-        "max_tokens": 64000,  # Default 32K, Maximum 64K
+        "context_length": 128000,
+        "max_tokens": 64000,
         "default_max_tokens": 32000,
-        "description": "DeepSeek-V3.1 Reasoning model (Thinking Mode) with 128K context",
+        "description": "DeepSeek-V3.1 Reasoning model (Thinking Mode) with chain of thought",
         "supports_json": True,
-        "supports_function_calling": False,  # Not supported, falls back to deepseek-chat if tools provided
-        "supports_prefix_completion": True,
-        "supports_fim": False,
-        "has_reasoning_content": True  # Special field for reasoning output
+        "supports_function_calling": False,
+        "supports_streaming": True,
+        "has_reasoning_content": True
+    },
+    # OpenAI Models
+    "gpt-4o": {
+        "name": "gpt-4o",
+        "display_name": "GPT-4o",
+        "provider": "openai",
+        "context_length": 128000,
+        "max_tokens": 16384,
+        "default_max_tokens": 4096,
+        "description": "OpenAI's most advanced multimodal model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    "gpt-4o-mini": {
+        "name": "gpt-4o-mini",
+        "display_name": "GPT-4o Mini",
+        "provider": "openai",
+        "context_length": 128000,
+        "max_tokens": 16384,
+        "default_max_tokens": 4096,
+        "description": "OpenAI's fast and affordable small model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    "gpt-4-turbo": {
+        "name": "gpt-4-turbo",
+        "display_name": "GPT-4 Turbo",
+        "provider": "openai",
+        "context_length": 128000,
+        "max_tokens": 4096,
+        "default_max_tokens": 4096,
+        "description": "OpenAI's GPT-4 Turbo model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    # Anthropic Models
+    "claude-3-5-sonnet-20241022": {
+        "name": "claude-3-5-sonnet-20241022",
+        "display_name": "Claude 3.5 Sonnet",
+        "provider": "anthropic",
+        "context_length": 200000,
+        "max_tokens": 8192,
+        "default_max_tokens": 4096,
+        "description": "Anthropic's most intelligent model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    "claude-3-5-haiku-20241022": {
+        "name": "claude-3-5-haiku-20241022",
+        "display_name": "Claude 3.5 Haiku",
+        "provider": "anthropic",
+        "context_length": 200000,
+        "max_tokens": 8192,
+        "default_max_tokens": 4096,
+        "description": "Anthropic's fastest model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    # Google Models
+    "gemini/gemini-2.0-flash-exp": {
+        "name": "gemini/gemini-2.0-flash-exp",
+        "display_name": "Gemini 2.0 Flash",
+        "provider": "gemini",
+        "context_length": 1000000,
+        "max_tokens": 8192,
+        "default_max_tokens": 4096,
+        "description": "Google's latest Gemini 2.0 Flash experimental model",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    "gemini/gemini-1.5-pro": {
+        "name": "gemini/gemini-1.5-pro",
+        "display_name": "Gemini 1.5 Pro",
+        "provider": "gemini",
+        "context_length": 2000000,
+        "max_tokens": 8192,
+        "default_max_tokens": 4096,
+        "description": "Google's Gemini 1.5 Pro with 2M context",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    # Ollama (Local Models)
+    "ollama/llama3.2": {
+        "name": "ollama/llama3.2",
+        "display_name": "Llama 3.2 (Local)",
+        "provider": "ollama",
+        "context_length": 128000,
+        "max_tokens": 4096,
+        "default_max_tokens": 2048,
+        "description": "Meta's Llama 3.2 running locally via Ollama",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
+    },
+    "ollama/qwen2.5": {
+        "name": "ollama/qwen2.5",
+        "display_name": "Qwen 2.5 (Local)",
+        "provider": "ollama",
+        "context_length": 128000,
+        "max_tokens": 4096,
+        "default_max_tokens": 2048,
+        "description": "Alibaba's Qwen 2.5 running locally via Ollama",
+        "supports_json": True,
+        "supports_function_calling": True,
+        "supports_streaming": True
     }
 }
+
+# Provider-specific API key environment variables
+PROVIDER_API_KEYS = {
+    "deepseek": "DEEPSEEK_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "ollama": None  # No API key needed for local Ollama
+}
+
+# Default model
+DEFAULT_MODEL = "deepseek/deepseek-chat"
 
 # Temperature presets
 TEMPERATURE_PRESETS = {

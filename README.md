@@ -1,48 +1,35 @@
-# DeepSeek CLI
+# AI CLI - Multi-Provider AI Interface
 
-A powerful command-line interface for interacting with DeepSeek's AI models.
+A powerful command-line interface for interacting with multiple AI models from different providers through a unified interface powered by LiteLLM.
 
 [@PierrunoYT/deepseek-cli](https://github.com/PierrunoYT/deepseek-cli)
 
-## Features
+## 🌟 Features
 
-- 🤖 Multiple Model Support
-  - DeepSeek-V3.1 (deepseek-chat) - Non-thinking Mode
-  - DeepSeek-V3.1 (deepseek-reasoner) - Thinking Mode with Chain of Thought
-  - DeepSeek-V2.5 Coder (deepseek-coder)
+### 🤖 Multi-Provider Support
+- **DeepSeek**: deepseek-chat, deepseek-coder, deepseek-reasoner
+- **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3.5 Haiku
+- **Google**: Gemini 2.0 Flash, Gemini 1.5 Pro
+- **Ollama**: Local models (Llama 3.2, Qwen 2.5, etc.)
 
-- 🔄 Advanced Conversation Features
-  - Multi-round conversations with context preservation
-  - System message customization
-  - Conversation history tracking
-  - Context caching for better performance and cost savings
-  - Inline mode for quick queries
-  - 128K context window for all models
+### 🔄 Advanced Features
+- **Streaming Responses**: Real-time token streaming with rich formatting
+- **Function Calling**: Support for up to 128 functions
+- **JSON Mode**: Force valid JSON output
+- **Context Preservation**: Multi-round conversations with history
+- **Reasoning Mode**: Chain-of-thought display for reasoning models
+- **Temperature Presets**: Quick settings for different use cases
+- **Flexible Parameters**: Control temperature, top_p, penalties, and more
 
-- 🧪 Beta Features
-  - Prefix Completion: Complete assistant messages from a given prefix
-  - Fill-in-the-Middle (FIM): Complete content between a prefix and suffix
-  - Context Caching: Automatic disk-based caching with up to 90% cost savings
-  - Anthropic API Compatibility: Use DeepSeek models with Anthropic API format
+### 🎨 Rich Terminal UI
+- Markdown rendering for responses
+- Colored output with syntax highlighting
+- Styled panels and prompts
+- Token usage statistics
+- Provider and model information display
 
-- 🛠️ Advanced Controls
-  - Temperature control with presets
-  - JSON output mode
-  - Streaming responses (enabled by default)
-  - Function calling (up to 128 functions)
-  - Stop sequences
-  - Top-p sampling
-  - Frequency and presence penalties
-
-- 📦 Package Management
-  - Automatic version checking
-  - Update notifications
-  - Easy installation and updates
-  - Development mode support
-
-## Installation
-
-You can install DeepSeek CLI in two ways:
+## 📦 Installation
 
 ### Option 1: Install from PyPI (Recommended)
 
@@ -58,279 +45,374 @@ cd deepseek-cli
 pip install -e .
 ```
 
-### Updating the Package
-
-To update to the latest version:
+### Updating
 
 ```bash
 pip install --upgrade deepseek-cli
 ```
 
-For development installation, pull the latest changes and reinstall:
+## 🔑 API Key Setup
 
+Set up API keys for the providers you want to use:
+
+### Linux/macOS
 ```bash
-git pull
-pip install -e . --upgrade
+export DEEPSEEK_API_KEY="your-deepseek-key"
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GEMINI_API_KEY="your-gemini-key"
 ```
 
-The CLI will automatically check for updates on startup and notify you when a new version is available.
-
-### API Key Setup
-
-Set your DeepSeek API key as an environment variable:
-
-#### macOS/Linux
-```bash
-export DEEPSEEK_API_KEY="your-api-key"
+### Windows (PowerShell)
+```powershell
+$env:DEEPSEEK_API_KEY="your-deepseek-key"
+$env:OPENAI_API_KEY="your-openai-key"
+$env:ANTHROPIC_API_KEY="your-anthropic-key"
+$env:GEMINI_API_KEY="your-gemini-key"
 ```
 
-#### Windows
+### Windows (CMD)
 ```cmd
-set DEEPSEEK_API_KEY="your-api-key"
+set DEEPSEEK_API_KEY=your-deepseek-key
+set OPENAI_API_KEY=your-openai-key
+set ANTHROPIC_API_KEY=your-anthropic-key
+set GEMINI_API_KEY=your-gemini-key
 ```
 
-To make it permanent, add it to your environment variables through System Settings.
+**Note**: Ollama models run locally and don't require API keys. Make sure you have [Ollama](https://ollama.ai) installed and running.
 
-## Usage
-
-DeepSeek CLI supports two modes of operation: interactive mode and inline mode.
+## 🚀 Usage
 
 ### Interactive Mode
 
-After installation, you can start the CLI in interactive mode in two ways:
+Start the CLI in interactive mode:
 
-### If installed from PyPI:
 ```bash
 deepseek
 ```
 
-### If installed in development mode:
+Or with a specific model:
+
 ```bash
-deepseek
-# or
-python -m deepseek_cli
+deepseek -m gpt-4o
+deepseek -m claude-3-5-sonnet-20241022
+deepseek -m deepseek/deepseek-chat
 ```
 
 ### Inline Mode
 
-You can also use DeepSeek CLI in inline mode to get quick answers without starting an interactive session:
+Get quick answers without starting an interactive session:
 
 ```bash
 # Basic usage
 deepseek -q "What is the capital of France?"
 
 # Specify a model
-deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder
+deepseek -q "Write a Python function to calculate factorial" -m deepseek/deepseek-coder
 
-# Get raw output without token usage information
-deepseek -q "Write a Python function to calculate factorial" -r
+# Get raw output without token usage
+deepseek -q "Explain quantum computing" -m gpt-4o -r
 
-# Combine options
-deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r
+# Enable streaming
+deepseek -q "Tell me a story" -m claude-3-5-sonnet-20241022 -s
 ```
 
-Available inline mode options:
-- `-q, --query`: The query to send to the model
-- `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
-- `-r, --raw`: Output raw response without token usage information
-- `-s, --stream`: Enable streaming mode (enabled by default)
-- `--no-stream`: Disable streaming mode
+### Command-Line Options
 
-### Troubleshooting
+| Option | Description |
+|--------|-------------|
+| `-q, --query` | Run in inline mode with the specified query |
+| `-m, --model` | Specify the model to use |
+| `-r, --raw` | Output raw response without token usage info |
+| `-s, --stream` | Enable streaming mode |
 
-- If the API key is not recognized:
-  - Make sure you've set the DEEPSEEK_API_KEY environment variable
-  - Try closing and reopening your terminal
-  - Check if the key is correct with: `echo $DEEPSEEK_API_KEY` (Unix) or `echo %DEEPSEEK_API_KEY%` (Windows)
+## 📋 Available Commands
 
-- If you get import errors:
-  - Ensure you've installed the package: `pip list | grep deepseek-cli`
-  - Try reinstalling: `pip install --force-reinstall deepseek-cli`
+### Model Management
 
-- For development installation issues:
-  - Make sure you're in the correct directory
-  - Try: `pip install -e . --upgrade`
+| Command | Description |
+|---------|-------------|
+| `/models` | List all available models grouped by provider |
+| `/provider <name>` | List models for a specific provider |
+| `/model <name>` | Switch to a specific model |
+| `/apikey <provider> <key>` | Set API key for a provider |
 
-### Available Commands
-
-Basic Commands:
-- `/help` - Show help message
-- `/models` - List available models
-- `/model X` - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
-- `/clear` - Clear conversation history
-- `/history` - Display conversation history
-- `/about` - Show API information
-- `/balance` - Check account balance
-
-Model Settings:
-- `/temp X` - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
-- `/freq X` - Set frequency penalty (-2 to 2)
-- `/pres X` - Set presence penalty (-2 to 2)
-- `/top_p X` - Set top_p sampling (0 to 1)
-
-Beta Features:
-- `/beta` - Toggle beta features
-- `/prefix` - Toggle prefix completion mode
-- `/fim` - Toggle Fill-in-the-Middle completion
-- `/cache` - Toggle context caching
-
-Output Control:
-- `/json` - Toggle JSON output mode
-- `/stream` - Toggle streaming mode (streaming is enabled by default)
-- `/stop X` - Add stop sequence
-- `/clearstop` - Clear stop sequences
-
-Function Calling:
-- `/function {}` - Add function definition (JSON format)
-- `/clearfuncs` - Clear registered functions
-
-### Model-Specific Features
-
-#### DeepSeek-V3.1 (deepseek-chat)
-- **Version**: DeepSeek-V3.1 (Non-thinking Mode)
-- **Context Length**: 128K tokens (128,000 tokens)
-- **Output Length**: Default 4K, Maximum 8K tokens
-- **Supports all features**:
-  - JSON Output ✓
-  - Function Calling ✓ (up to 128 functions)
-  - Chat Prefix Completion (Beta) ✓
-  - Fill-in-the-Middle (Beta) ✓
-- General-purpose chat model
-- Latest improvements:
-  - Enhanced instruction following (77.6% IFEval accuracy)
-  - Improved JSON output (97% parsing rate)
-  - Advanced reasoning capabilities
-  - Role-playing capabilities
-
-#### DeepSeek-V3.1 (deepseek-reasoner)
-- **Version**: DeepSeek-V3.1 (Thinking Mode)
-- **Context Length**: 128K tokens (128,000 tokens)
-- **Output Length**: Default 32K, Maximum 64K tokens
-- **Chain of Thought**: Displays reasoning process before final answer
-- **Supported features**:
-  - JSON Output ✓
-  - Chat Prefix Completion (Beta) ✓
-- **Unsupported features**:
-  - Function Calling ✗ (automatically falls back to deepseek-chat if tools provided)
-  - Fill-in-the-Middle ✗
-  - Temperature, top_p, presence/frequency penalties ✗
-- Excels at complex reasoning and problem-solving tasks
-
-#### DeepSeek-V2.5 Coder (deepseek-coder)
-- **Context Length**: 128K tokens
-- **Output Length**: Default 4K, Maximum 8K tokens
-- **Supports all features**:
-  - JSON Output ✓
-  - Function Calling ✓
-  - Chat Prefix Completion (Beta) ✓
-  - Fill-in-the-Middle (Beta) ✓
-- Optimized for code generation and analysis
-
-### Feature Details
-
-#### Fill-in-the-Middle (FIM)
-Use XML-style tags to define the gap:
+Example:
 ```
-<fim_prefix>def calculate_sum(a, b):</fim_prefix><fim_suffix>    return result</fim_suffix>
+/models                                    # See all models
+/provider openai                           # See OpenAI models
+/model gpt-4o                             # Switch to GPT-4o
+/apikey openai sk-...                     # Set OpenAI API key
 ```
 
-#### JSON Mode
-Forces model to output valid JSON. Example system message:
-```json
-{
-    "response": "structured output",
-    "data": {
-        "field1": "value1",
-        "field2": "value2"
-    }
-}
-```
+### Output Control
 
-#### Context Caching
-- **Automatic disk-based caching** for all users
-- **No code changes required** - works automatically
-- **Minimum cache size**: 64 tokens
-- **Pricing**:
-  - Cache hits: $0.014 per million tokens (90% savings)
-  - Cache misses: $0.14 per million tokens (standard rate)
-- **Performance benefits**:
-  - Significantly reduces first token latency for long, repetitive inputs
-  - Example: 128K prompt reduced from 13s to 500ms
-- **Best use cases**:
-  - Q&A assistants with long preset prompts
-  - Role-play with extensive character settings
-  - Data analysis with recurring queries on same documents
-  - Code analysis and debugging with repeated repository references
-  - Few-shot learning with multiple examples
-- Enabled by default
+| Command | Description |
+|---------|-------------|
+| `/json` | Toggle JSON output mode |
+| `/stream` | Toggle streaming mode |
+| `/beta` | Toggle beta features (DeepSeek only) |
+| `/prefix` | Toggle prefix completion (requires beta) |
 
-#### Anthropic API Compatibility
-DeepSeek API now supports Anthropic API format, enabling integration with tools like Claude Code:
+### Model Parameters
 
-**Setup for Claude Code:**
+| Command | Description |
+|---------|-------------|
+| `/temp <value>` | Set temperature (0-2) or use preset |
+| `/freq <value>` | Set frequency penalty (-2 to 2) |
+| `/pres <value>` | Set presence penalty (-2 to 2) |
+| `/top_p <value>` | Set top_p sampling (0 to 1) |
+| `/stop <text>` | Add stop sequence |
+| `/clearstop` | Clear all stop sequences |
+
+### Function Calling
+
+| Command | Description |
+|---------|-------------|
+| `/function <json>` | Add a function definition |
+| `/clearfuncs` | Clear all registered functions |
+
+### General
+
+| Command | Description |
+|---------|-------------|
+| `/clear` | Clear conversation history |
+| `/help` | Show help message |
+| `/about` | Show API information |
+| `quit` or `exit` | Exit the program |
+
+## 🎯 Temperature Presets
+
+Quick temperature settings for different use cases:
+
+| Preset | Value | Best For |
+|--------|-------|----------|
+| `coding` | 0.0 | Code generation, deterministic output |
+| `data` | 1.0 | Data analysis, balanced responses |
+| `chat` | 1.3 | Conversational interactions |
+| `translation` | 1.3 | Language translation |
+| `creative` | 1.5 | Creative writing, brainstorming |
+
+Usage: `/temp coding` or `/temp 0.7`
+
+## 🤖 Supported Models
+
+### DeepSeek Models
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| `deepseek/deepseek-chat` | General chat model (V3.1) | 128K | 8K |
+| `deepseek/deepseek-coder` | Code-optimized model (V2.5) | 128K | 8K |
+| `deepseek/deepseek-reasoner` | Reasoning model with CoT (V3.1) | 128K | 64K |
+
+### OpenAI Models
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| `gpt-4o` | Most advanced multimodal model | 128K | 16K |
+| `gpt-4o-mini` | Fast and affordable model | 128K | 16K |
+| `gpt-4-turbo` | GPT-4 Turbo | 128K | 4K |
+
+### Anthropic Models
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| `claude-3-5-sonnet-20241022` | Most intelligent Claude model | 200K | 8K |
+| `claude-3-5-haiku-20241022` | Fastest Claude model | 200K | 8K |
+
+### Google Models
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| `gemini/gemini-2.0-flash-exp` | Latest Gemini 2.0 Flash | 1M | 8K |
+| `gemini/gemini-1.5-pro` | Gemini 1.5 Pro with huge context | 2M | 8K |
+
+### Ollama (Local Models)
+
+| Model | Description | Context | Max Output |
+|-------|-------------|---------|------------|
+| `ollama/llama3.2` | Meta's Llama 3.2 (local) | 128K | 4K |
+| `ollama/qwen2.5` | Alibaba's Qwen 2.5 (local) | 128K | 4K |
+
+**Note**: For Ollama models, make sure Ollama is installed and the model is pulled:
 ```bash
-# Install Claude Code
-npm install -g @anthropic-ai/claude-code
-
-# Configure environment variables
-export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
-export ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}
-export ANTHROPIC_MODEL=deepseek-chat
-export ANTHROPIC_SMALL_FAST_MODEL=deepseek-chat
-
-# Run in your project
-cd my-project
-claude
+ollama pull llama3.2
+ollama pull qwen2.5
 ```
 
-**Python SDK Example:**
-```python
-import anthropic
+## 💡 Usage Examples
 
-client = anthropic.Anthropic(
-    base_url="https://api.deepseek.com/anthropic",
-    api_key="your-deepseek-api-key"
-)
+### Switching Between Providers
 
-message = client.messages.create(
-    model="deepseek-chat",
-    max_tokens=1000,
-    system="You are a helpful assistant.",
-    messages=[
-        {
-            "role": "user",
-            "content": [{"type": "text", "text": "Hi, how are you?"}]
-        }
-    ]
-)
-print(message.content)
+```bash
+# Start with DeepSeek
+deepseek
+
+# Switch to OpenAI
+> /model gpt-4o
+
+# Switch to Anthropic
+> /model claude-3-5-sonnet-20241022
+
+# Switch to local Ollama
+> /model ollama/llama3.2
 ```
 
-**Supported Fields:**
-- ✓ model, max_tokens, stop_sequences, stream, system
-- ✓ temperature (range 0.0-2.0), top_p
-- ✓ tools (function calling)
-- ✗ thinking, top_k, mcp_servers (ignored)
+### Using Different Models for Different Tasks
 
-## Temperature Presets
+```bash
+# Code generation with DeepSeek Coder
+deepseek -m deepseek/deepseek-coder -q "Write a binary search algorithm in Python"
 
-- `coding`: 0.0 (deterministic)
-- `data`: 1.0 (balanced)
-- `chat`: 1.3 (creative)
-- `translation`: 1.3 (creative)
-- `creative`: 1.5 (very creative)
+# Creative writing with Claude
+deepseek -m claude-3-5-sonnet-20241022 -q "Write a short sci-fi story"
 
-## Error Handling
+# Fast responses with GPT-4o Mini
+deepseek -m gpt-4o-mini -q "Summarize quantum computing in 3 sentences"
 
-- Automatic retry with exponential backoff
-- Rate limit handling
-- Clear error messages
-- API status feedback
+# Local inference with Ollama
+deepseek -m ollama/llama3.2 -q "Explain machine learning"
+```
 
-## Support
+### Advanced Configuration
 
-For support, please open an issue on the [GitHub repository](https://github.com/PierrunoYT/deepseek-cli/issues).
+```bash
+# Set temperature for creative output
+> /temp creative
+> Write a poem about AI
 
-## License
+# Use JSON mode for structured output
+> /json
+> List 5 programming languages with their use cases
+
+# Enable streaming for long responses
+> /stream
+> Explain the history of computing
+```
+
+## 🔧 Advanced Features
+
+### Function Calling
+
+Define functions that the AI can call:
+
+```bash
+> /function {"name": "get_weather", "description": "Get weather for a location", "parameters": {"type": "object", "properties": {"location": {"type": "string"}}, "required": ["location"]}}
+> What's the weather in Paris?
+```
+
+### Reasoning Mode (DeepSeek)
+
+The DeepSeek Reasoner model shows its chain of thought:
+
+```bash
+> /model deepseek/deepseek-reasoner
+> Solve this logic puzzle: If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly?
+```
+
+### Local Models with Ollama
+
+Run models locally without API costs:
+
+```bash
+# Make sure Ollama is running
+ollama serve
+
+# Use local models
+deepseek -m ollama/llama3.2 -q "Hello, how are you?"
+```
+
+## 🐛 Troubleshooting
+
+### API Key Issues
+
+If API keys aren't recognized:
+```bash
+# Check if key is set
+echo $DEEPSEEK_API_KEY  # Linux/macOS
+echo %DEEPSEEK_API_KEY%  # Windows CMD
+$env:DEEPSEEK_API_KEY   # Windows PowerShell
+
+# Set key in-session
+> /apikey deepseek your-key-here
+```
+
+### Import Errors
+
+```bash
+# Reinstall dependencies
+pip install --force-reinstall deepseek-cli
+
+# For development
+pip install -e . --upgrade
+```
+
+### Ollama Connection Issues
+
+```bash
+# Check if Ollama is running
+ollama list
+
+# Start Ollama server
+ollama serve
+
+# Pull required model
+ollama pull llama3.2
+```
+
+## 🌐 Provider-Specific Notes
+
+### DeepSeek
+- Supports beta features like prefix completion
+- Reasoner model provides chain-of-thought reasoning
+- Context caching available for cost savings
+
+### OpenAI
+- Supports vision capabilities (not yet exposed in CLI)
+- Function calling fully supported
+- JSON mode available
+
+### Anthropic
+- Extended context windows (200K tokens)
+- Strong performance on reasoning tasks
+- Function calling supported
+
+### Google Gemini
+- Massive context windows (up to 2M tokens)
+- Experimental models available
+- Multimodal capabilities
+
+### Ollama
+- Runs completely locally
+- No API costs
+- Requires local installation and model downloads
+
+## 📊 Token Usage
+
+The CLI displays token usage after each response:
+- **Input tokens**: Tokens in your prompt
+- **Output tokens**: Tokens in the response
+- **Total tokens**: Combined usage
+- **Character estimates**: Approximate English/Chinese characters
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [LiteLLM](https://github.com/BerriAI/litellm) for multi-provider support
+- Uses [Rich](https://github.com/Textualize/rich) for beautiful terminal output
+- Inspired by the need for a unified AI model interface
+
+## 📞 Support
+
+For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/PierrunoYT/deepseek-cli/issues).
+
+---
+
+**Note**: This CLI was originally designed for DeepSeek but has been expanded to support multiple AI providers through LiteLLM. The package name remains `deepseek-cli` for compatibility, but it now works with any LiteLLM-supported provider.

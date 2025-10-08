@@ -59,20 +59,64 @@ class CommandHandler:
 
         elif command_lower == '/models':
             try:
-                response = self.api_client.list_models()
-                if response.data:
-                    models = "\n".join(f"  - {model.id} (owned by {model.owned_by})" for model in response.data)
-                    return True, f"Available Models:\n{models}"
+                models = self.api_client.list_available_models()
+                if models:
+                    # Group models by provider
+                    providers = {}
+                    for model in models:
+                        provider = model["provider"]
+                        if provider not in providers:
+                            providers[provider] = []
+                        providers[provider].append(model)
+                    
+                    output = "Available Models:\n"
+                    for provider, provider_models in sorted(providers.items()):
+                        output += f"\n[{provider.upper()}]\n"
+                        for model in provider_models:
+                            output += f"  - {model['name']}\n"
+                            output += f"    {model['description']}\n"
+                    return True, output
                 return True, "No models available"
             except Exception as e:
                 return True, f"Error fetching models: {str(e)}"
+        
+        elif command_lower.startswith('/provider '):
+            parts = command_raw.split(' ', 1)
+            provider = parts[1].strip() if len(parts) > 1 else ''
+            try:
+                models = self.api_client.list_models_by_provider(provider)
+                if models:
+                    output = f"Models for {provider.upper()}:\n"
+                    for model in models:
+                        output += f"  - {model['name']}\n"
+                        output += f"    {model['description']}\n"
+                    return True, output
+                return True, f"No models found for provider: {provider}"
+            except Exception as e:
+                return True, f"Error: {str(e)}"
 
         elif command_lower.startswith('/model '):
             parts = command_raw.split(' ', 1)
             model = parts[1].strip() if len(parts) > 1 else ''
             if self.chat_handler.switch_model(model):
-                return True, f"Switched to {model} model\nMax tokens set to {self.chat_handler.max_tokens}"
-            return True, "Invalid model"
+                self.api_client.set_model(model)
+                model_info = self.api_client.get_model_info(model)
+                provider = model_info.get("provider", "unknown") if model_info else "unknown"
+                display_name = model_info.get("display_name", model) if model_info else model
+                return True, f"Switched to {display_name} ({provider})\nMax tokens set to {self.chat_handler.max_tokens}"
+            return True, "Invalid model. Use /models to see available models."
+        
+        elif command_lower.startswith('/apikey '):
+            parts = command_raw.split(' ', 2)
+            if len(parts) < 3:
+                return True, "Usage: /apikey <provider> <key>"
+            provider = parts[1].strip().lower()
+            api_key = parts[2].strip()
+            try:
+                self.api_client.update_api_key(provider, api_key)
+                return True, f"API key updated for {provider}"
+            except Exception as e:
+                return True, f"Error updating API key: {str(e)}"
 
         elif command_lower.startswith('/temp '):
             parts = command_raw.split(' ', 1)
@@ -146,30 +190,46 @@ class CommandHandler:
     def get_help_message(self) -> str:
         """Get help message with all available commands"""
         return """Available commands:
+
+Model Management:
+  /models      - List all available models grouped by provider
+  /provider X  - List models for a specific provider (deepseek, openai, anthropic, gemini, ollama)
+  /model X     - Switch to a specific model (use full model name from /models)
+  /apikey X Y  - Set API key for provider X with key Y
+
+Output Control:
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
-  /beta        - Toggle beta features
+  /beta        - Toggle beta features (DeepSeek only)
   /prefix      - Toggle prefix completion mode (requires beta)
-  /models      - List available models
-  /model X     - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
+
+Model Parameters:
   /temp X      - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
   /freq X      - Set frequency penalty (-2 to 2)
   /pres X      - Set presence penalty (-2 to 2)
   /top_p X     - Set top_p sampling (0 to 1)
   /stop X      - Add stop sequence
   /clearstop   - Clear all stop sequences
+
+Function Calling:
   /function {} - Add a function definition (JSON format)
   /clearfuncs  - Clear all registered functions
+
+General:
   /clear       - Clear conversation history
   /about       - Show API information and contact details
   /help        - Show this help message
-  quit         - Exit the program
+  quit/exit    - Exit the program
 
-Notes:
-  - deepseek-chat is DeepSeek-V3 with 8K token output limit
-  - deepseek-reasoner is DeepSeek-R1 with 64K context and 8K output limit
-  - Temperature presets:
-    coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5"""
+Supported Providers:
+  - DeepSeek: deepseek/deepseek-chat, deepseek/deepseek-coder, deepseek/deepseek-reasoner
+  - OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo
+  - Anthropic: claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022
+  - Google: gemini/gemini-2.0-flash-exp, gemini/gemini-1.5-pro
+  - Ollama: ollama/llama3.2, ollama/qwen2.5 (local models)
+
+Temperature Presets:
+  coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5"""
 
     def get_about_message(self) -> str:
         """Get about message with API information"""

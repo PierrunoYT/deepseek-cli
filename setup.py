@@ -8,7 +8,7 @@ setup(
     version="0.2.1",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
-    description="A powerful CLI for interacting with DeepSeek's AI models",
+    description="A powerful multi-provider CLI for interacting with AI models via LiteLLM",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/PierrunoYT/deepseek-cli",
@@ -30,7 +30,7 @@ setup(
     ],
     python_requires=">=3.7",
     install_requires=[
-        "openai>=1.0.0",
+        "litellm>=1.0.0",
         "requests>=2.31.0",
         "typing-extensions>=4.7.0",
         "pydantic>=2.0.0",
@@ -40,7 +40,7 @@ setup(
     ],
         entry_points={
         "console_scripts": [
-            "deepseek=deepseek_cli.cli.deepseek_cli:main",
+            "deepseek=deepseek_cli.cli.ai_cli:main",
         ],
     },
     package_data={
