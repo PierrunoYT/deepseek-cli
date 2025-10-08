@@ -1,4 +1,4 @@
-"""Main CLI class for Multi-Provider AI Interface"""
+"""Main CLI class for DeepSeek"""
 
 import json
 import argparse
@@ -34,10 +34,10 @@ except ImportError:
 
     
 
-class MultiProviderCLI:
-    def __init__(self, *, stream: bool = False, model: Optional[str] = None) -> None:
-        self.api_client = APIClient(model=model)
-        self.chat_handler = ChatHandler(stream=stream, model=model)
+class DeepSeekCLI:
+    def __init__(self, *, stream: bool = False) -> None:
+        self.api_client = APIClient()
+        self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
 
@@ -114,11 +114,8 @@ class MultiProviderCLI:
         self.chat_handler.set_system_message("You are a helpful assistant.")
 
         # Set model if specified
-        if model:
-            if self.chat_handler.switch_model(model):
-                self.api_client.set_model(model)
-            else:
-                console.print(f"[yellow]Warning: Unknown model '{model}', using default[/yellow]")
+        if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
+            self.chat_handler.switch_model(model)
 
         # Get and return response
         return self.get_completion(query, raw=raw) or "Error: Failed to get response"
@@ -130,25 +127,19 @@ class MultiProviderCLI:
         """
 
         if style == 'simple':
-            # Get current model info
-            model_name = self.chat_handler.model
-            provider = self.chat_handler.get_current_provider()
-            
             panel = Panel(
                 Align.center(
-                    f"Multi-Provider AI CLI powered by LiteLLM\n"
-                    f"Current Model: {model_name} ({provider})\n\n"
-                    f"Type /help for commands, /models to see all models, or exit to quit.",
+                    "Use natural language to interact with AI.\nType /help for commands, or exit to quit.",
                     vertical="middle"
                 ),
-                title="💡 AI CLI",
+                title="💡 DeepSeek CLI",
                 border_style="cyan",
                 box=box.SIMPLE
             )
             console.print(panel)        
         else: 
             fig = Figlet(font='slant')
-            ascii_title = fig.renderText('AI CLI')
+            ascii_title = fig.renderText('DeepSeek CLI')
 
             # Apply gradient colors to ASCII art
             gradient_title = Text()
@@ -171,28 +162,17 @@ class MultiProviderCLI:
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description="Multi-Provider AI CLI - A powerful interface for multiple AI models")
+    parser = argparse.ArgumentParser(description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models")
     parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
-    parser.add_argument("-m", "--model", type=str,
-                        help="Specify the model to use (e.g., deepseek/deepseek-chat, gpt-4o, claude-3-5-sonnet-20241022)")
+    parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+                        help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
     parser.add_argument("-s", "--stream", action="store_true", help="Enable stream mode")
-    parser.add_argument("--no-stream", action="store_true", help="Disable stream mode")
     return parser.parse_args()
 
 def main() -> None:
     args = parse_arguments()
-    
-    # Determine stream mode based on command line arguments
-    if args.no_stream:
-        stream_mode = False
-    elif args.stream:
-        stream_mode = True
-    else:
-        # Use default value from class (which is now False)
-        stream_mode = False
-    
-    cli = MultiProviderCLI(stream=stream_mode, model=args.model)
+    cli = DeepSeekCLI(stream=args.stream)
 
     # Check if running in inline mode
     if args.query:

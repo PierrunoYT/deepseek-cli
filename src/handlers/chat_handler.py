@@ -34,11 +34,9 @@ except ImportError:
     from src.utils.version_checker import check_version
 
 class ChatHandler:
-    def __init__(self, *, stream: bool = False, model: Optional[str] = None) -> None:
+    def __init__(self, *, stream: bool = False) -> None:
         self.messages: List[Dict[str, Any]] = []
-        # Use default model from config if not specified
-        from src.config.settings import DEFAULT_MODEL
-        self.model: str = model or DEFAULT_MODEL
+        self.model: str = "deepseek-chat"
         self.stream: bool = stream
         self.json_mode: bool = False
         self.max_tokens: int = DEFAULT_MAX_TOKENS
@@ -96,11 +94,7 @@ class ChatHandler:
     
     def get_current_provider(self) -> str:
         """Get the provider of the current model"""
-        if self.model in MODEL_CONFIGS:
-            return MODEL_CONFIGS[self.model].get("provider", "unknown")
-        if "/" in self.model:
-            return self.model.split("/")[0]
-        return "unknown"
+        return "deepseek"
 
     def set_temperature(self, temp_str: str) -> bool:
         """Set temperature either by number or preset name"""
@@ -179,7 +173,7 @@ class ChatHandler:
         }
 
         # Only add these parameters if not using the reasoner model
-        if self.model != "deepseek/deepseek-reasoner":
+        if self.model != "deepseek-reasoner":
             kwargs.update({
                 "temperature": self.temperature,
                 "frequency_penalty": self.frequency_penalty,
