@@ -1,6 +1,6 @@
-"""Main entry point for Multi-Provider AI CLI"""
+"""Main entry point for DeepSeek CLI"""
 
-from .cli.ai_cli import main
+from .cli.deepseek_cli import main
 
 if __name__ == "__main__":
     main()

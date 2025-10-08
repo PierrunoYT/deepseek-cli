@@ -1,4 +1,4 @@
-"""Chat handler for DeepSeek CLI"""
+"Chat handler for DeepSeek CLI"
 
 import json
 from typing import Optional, Dict, Any, List
