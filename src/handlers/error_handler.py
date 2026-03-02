@@ -7,9 +7,11 @@ from rich.console import Console
 
 # Simplified import handling with clear fallback chain
 try:
-    from deepseek_cli.utils.exceptions import RateLimitExceeded
-    from deepseek_cli.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+    # When installed via pip/pipx (package_dir={"": "src"})
+    from utils.exceptions import RateLimitExceeded
+    from config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 except ImportError:
+    # When running from source (development mode)
     from src.utils.exceptions import RateLimitExceeded
     from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
 

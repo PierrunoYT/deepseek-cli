@@ -5,10 +5,12 @@ from typing import Optional, Dict, Any, Tuple
 
 # Simplified import handling with clear fallback chain
 try:
-    from deepseek_cli.api.client import APIClient
-    from deepseek_cli.handlers.chat_handler import ChatHandler
-    from deepseek_cli.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+    # When installed via pip/pipx (package_dir={"": "src"})
+    from api.client import APIClient
+    from handlers.chat_handler import ChatHandler
+    from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 except ImportError:
+    # When running from source (development mode)
     from src.api.client import APIClient
     from src.handlers.chat_handler import ChatHandler
     from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS

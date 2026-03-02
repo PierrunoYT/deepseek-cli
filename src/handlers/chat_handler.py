@@ -11,7 +11,8 @@ from rich.panel import Panel
 
 # Simplified import handling with clear fallback chain
 try:
-    from deepseek_cli.config.settings import (
+    # When installed via pip/pipx (package_dir={"": "src"})
+    from config.settings import (
         MODEL_CONFIGS,
         TEMPERATURE_PRESETS,
         DEFAULT_MAX_TOKENS,
@@ -20,8 +21,9 @@ try:
         MAX_STOP_SEQUENCES,
         MAX_HISTORY_LENGTH
     )
-    from deepseek_cli.utils.version_checker import check_version
+    from utils.version_checker import check_version
 except ImportError:
+    # When running from source (development mode)
     from src.config.settings import (
         MODEL_CONFIGS,
         TEMPERATURE_PRESETS,

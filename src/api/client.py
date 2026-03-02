@@ -6,9 +6,11 @@ from typing import Dict, Any, List
 
 # Simplified import handling with clear fallback chain
 try:
-    from deepseek_cli.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-    from deepseek_cli.utils.exceptions import DeepSeekError
+    # When installed via pip/pipx (package_dir={"": "src"})
+    from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+    from utils.exceptions import DeepSeekError
 except ImportError:
+    # When running from source (development mode)
     from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
     from src.utils.exceptions import DeepSeekError
 
