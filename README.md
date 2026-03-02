@@ -7,8 +7,8 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 ## Features
 
 - 🤖 Multiple Model Support
-  - DeepSeek-V3.1 (deepseek-chat) - Non-thinking Mode
-  - DeepSeek-V3.1 (deepseek-reasoner) - Thinking Mode with Chain of Thought
+  - DeepSeek-V3.2 (deepseek-chat) - Non-thinking Mode
+  - DeepSeek-V3.2 (deepseek-reasoner) - Thinking Mode with Chain of Thought
   - DeepSeek-V2.5 Coder (deepseek-coder)
 
 - 🔄 Advanced Conversation Features
@@ -19,9 +19,9 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - Inline mode for quick queries
   - 128K context window for all models
 
-- 🧪 Beta Features
-  - Prefix Completion: Complete assistant messages from a given prefix
-  - Fill-in-the-Middle (FIM): Complete content between a prefix and suffix
+- 🚀 Advanced Features
+  - Prefix Completion: Complete assistant messages from a given prefix (Stable)
+  - Fill-in-the-Middle (FIM): Complete content between a prefix and suffix (Stable)
   - Context Caching: Automatic disk-based caching with up to 90% cost savings
   - Anthropic API Compatibility: Use DeepSeek models with Anthropic API format
 
@@ -186,35 +186,37 @@ Function Calling:
 
 ### Model-Specific Features
 
-#### DeepSeek-V3.1 (deepseek-chat)
-- **Version**: DeepSeek-V3.1 (Non-thinking Mode)
+#### DeepSeek-V3.2 (deepseek-chat)
+- **Version**: DeepSeek-V3.2 (Non-thinking Mode) - Updated December 2025
 - **Context Length**: 128K tokens (128,000 tokens)
 - **Output Length**: Default 4K, Maximum 8K tokens
 - **Supports all features**:
   - JSON Output ✓
   - Function Calling ✓ (up to 128 functions)
-  - Chat Prefix Completion (Beta) ✓
-  - Fill-in-the-Middle (Beta) ✓
+  - Chat Prefix Completion ✓
+  - Fill-in-the-Middle ✓
 - General-purpose chat model
 - Latest improvements:
   - Enhanced instruction following (77.6% IFEval accuracy)
   - Improved JSON output (97% parsing rate)
   - Advanced reasoning capabilities
   - Role-playing capabilities
+  - Agent capability optimizations (Code Agent, Search Agent)
 
-#### DeepSeek-V3.1 (deepseek-reasoner)
-- **Version**: DeepSeek-V3.1 (Thinking Mode)
+#### DeepSeek-V3.2 (deepseek-reasoner)
+- **Version**: DeepSeek-V3.2 (Thinking Mode) - Updated December 2025
 - **Context Length**: 128K tokens (128,000 tokens)
 - **Output Length**: Default 32K, Maximum 64K tokens
 - **Chain of Thought**: Displays reasoning process before final answer
 - **Supported features**:
   - JSON Output ✓
-  - Chat Prefix Completion (Beta) ✓
+  - Chat Prefix Completion ✓
 - **Unsupported features**:
   - Function Calling ✗ (automatically falls back to deepseek-chat if tools provided)
   - Fill-in-the-Middle ✗
   - Temperature, top_p, presence/frequency penalties ✗
 - Excels at complex reasoning and problem-solving tasks
+- Enhanced agent capabilities with benchmark improvements
 
 #### DeepSeek-V2.5 Coder (deepseek-coder)
 - **Context Length**: 128K tokens

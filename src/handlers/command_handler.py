@@ -51,11 +51,9 @@ class CommandHandler:
 
         elif command_lower == '/beta':
             self.api_client.toggle_beta()
-            return True, f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'}"
+            return True, f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'} (Note: Most features are now stable and don't require beta mode)"
 
         elif command_lower == '/prefix':
-            if not self.api_client.beta_mode:
-                return True, "Error: Prefix mode requires beta mode. Use /beta first."
             self.chat_handler.prefix_mode = not self.chat_handler.prefix_mode
             return True, f"Prefix mode {'enabled' if self.chat_handler.prefix_mode else 'disabled'}"
 
@@ -150,8 +148,10 @@ class CommandHandler:
         return """Available commands:
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
-  /beta        - Toggle beta features
-  /prefix      - Toggle prefix completion mode (requires beta)
+  /beta        - Toggle beta features (experimental endpoints)
+  /prefix      - Toggle prefix completion mode
+  /fim         - Toggle Fill-in-the-Middle completion
+  /cache       - Toggle context caching
   /models      - List available models
   /model X     - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
   /temp X      - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
@@ -163,13 +163,16 @@ class CommandHandler:
   /function {} - Add a function definition (JSON format)
   /clearfuncs  - Clear all registered functions
   /clear       - Clear conversation history
+  /history     - Display conversation history
+  /balance     - Check account balance
   /about       - Show API information and contact details
   /help        - Show this help message
-  quit         - Exit the program
+  quit/exit    - Exit the program
 
 Notes:
-  - deepseek-chat is DeepSeek-V3 with 8K token output limit
-  - deepseek-reasoner is DeepSeek-R1 with 64K context and 8K output limit
+  - deepseek-chat is DeepSeek-V3.2 (Non-thinking Mode) with 128K context, 8K output
+  - deepseek-reasoner is DeepSeek-V3.2 (Thinking Mode) with 128K context, 64K output
+  - deepseek-coder is DeepSeek-V2.5 (may redirect to deepseek-chat)
   - Temperature presets:
     coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5"""
 

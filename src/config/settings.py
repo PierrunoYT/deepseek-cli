@@ -16,13 +16,15 @@ ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
 # Feature configurations
 FEATURE_CONFIGS = {
     "prefix_completion": {
-        "requires_beta": True,
-        "description": "Complete assistant messages from a given prefix"
+        "requires_beta": False,
+        "description": "Complete assistant messages from a given prefix",
+        "status": "stable"
     },
     "fim_completion": {
-        "requires_beta": True,
-        "max_tokens": 4096,
-        "description": "Fill in the middle completion for content/code"
+        "requires_beta": False,
+        "max_tokens": 8192,
+        "description": "Fill in the middle completion for content/code",
+        "status": "stable"
     },
     "json_mode": {
         "requires_json_word": True,
@@ -41,16 +43,17 @@ FEATURE_CONFIGS = {
 MODEL_CONFIGS = {
     "deepseek-chat": {
         "name": "deepseek-chat",
-        "version": "DeepSeek-V3.1",
+        "version": "DeepSeek-V3.2",
         "mode": "Non-thinking Mode",
         "context_length": 128000,  # 128K context
         "max_tokens": 8192,  # Default 4K, Maximum 8K
         "default_max_tokens": 4096,
-        "description": "DeepSeek-V3.1 Chat model (Non-thinking Mode) with 128K context",
+        "description": "DeepSeek-V3.2 Chat model (Non-thinking Mode) with 128K context",
         "supports_json": True,
         "supports_function_calling": True,
         "supports_prefix_completion": True,
-        "supports_fim": True
+        "supports_fim": True,
+        "updated": "December 2025"
     },
     "deepseek-coder": {
         "name": "deepseek-coder",
@@ -67,17 +70,18 @@ MODEL_CONFIGS = {
     },
     "deepseek-reasoner": {
         "name": "deepseek-reasoner",
-        "version": "DeepSeek-V3.1",
+        "version": "DeepSeek-V3.2",
         "mode": "Thinking Mode",
         "context_length": 128000,  # 128K context
         "max_tokens": 64000,  # Default 32K, Maximum 64K
         "default_max_tokens": 32000,
-        "description": "DeepSeek-V3.1 Reasoning model (Thinking Mode) with 128K context",
+        "description": "DeepSeek-V3.2 Reasoning model (Thinking Mode) with 128K context",
         "supports_json": True,
         "supports_function_calling": False,  # Not supported, falls back to deepseek-chat if tools provided
         "supports_prefix_completion": True,
         "supports_fim": False,
-        "has_reasoning_content": True  # Special field for reasoning output
+        "has_reasoning_content": True,  # Special field for reasoning output
+        "updated": "December 2025"
     }
 }
 
