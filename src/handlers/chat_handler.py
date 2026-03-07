@@ -166,10 +166,26 @@ class ChatHandler:
             self.messages = []
 
     def prepare_chat_request(self) -> Dict[str, Any]:
-        """Prepare chat completion request parameters"""
+        """Prepare chat completion request parameters.
+        
+        Does NOT mutate self.messages — prefix mode injects a read-only view
+        into the messages list passed to the API, leaving history intact.
+        """
+        # Build the message list for the request.  For prefix mode the last
+        # user message is presented as an assistant prefix WITHOUT modifying
+        # self.messages so retries and history remain consistent.
+        if self.prefix_mode and self.messages and self.messages[-1]["role"] == "user":
+            messages = list(self.messages[:-1]) + [{
+                "role": "assistant",
+                "content": self.messages[-1]["content"],
+                "prefix": True
+            }]
+        else:
+            messages = self.messages
+
         kwargs: Dict[str, Any] = {
             "model": self.model,
-            "messages": self.messages,
+            "messages": messages,
             "stream": self.stream,
             "max_tokens": self.max_tokens
         }
@@ -194,15 +210,6 @@ class ChatHandler:
 
         if self.stream:
             kwargs["stream_options"] = self.stream_options
-
-        # Handle prefix mode
-        if self.prefix_mode and self.messages and self.messages[-1]["role"] == "user":
-            prefix_content = self.messages[-1]["content"]
-            self.messages[-1] = {
-                "role": "assistant",
-                "content": prefix_content,
-                "prefix": True
-            }
 
         return kwargs
 

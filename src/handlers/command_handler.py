@@ -135,6 +135,31 @@ class CommandHandler:
             self.chat_handler.clear_history()
             return True, "Conversation history cleared"
 
+        elif command_lower == '/history':
+            if not self.chat_handler.messages:
+                return True, "No conversation history"
+            lines = []
+            for i, msg in enumerate(self.chat_handler.messages):
+                role = msg.get("role", "unknown").capitalize()
+                content = msg.get("content", "")
+                # Truncate very long messages for readability
+                preview = content[:200] + ("..." if len(content) > 200 else "")
+                lines.append(f"  [{i}] {role}: {preview}")
+            return True, "Conversation history:\n" + "\n".join(lines)
+
+        elif command_lower == '/fim':
+            self.chat_handler.fim_mode = not getattr(self.chat_handler, 'fim_mode', False)
+            return True, f"FIM (Fill-in-the-Middle) mode {'enabled' if self.chat_handler.fim_mode else 'disabled'}"
+
+        elif command_lower == '/cache':
+            return True, "Context caching is handled automatically by the DeepSeek API and requires no manual toggling."
+
+        elif command_lower == '/balance':
+            return True, (
+                "Account balance check is not available via this CLI.\n"
+                "Please visit https://platform.deepseek.com to view your balance."
+            )
+
         elif command_lower == '/help':
             return True, self.get_help_message()
 
@@ -148,13 +173,13 @@ class CommandHandler:
         return """Available commands:
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
-  /beta        - Toggle beta features (experimental endpoints)
-  /prefix      - Toggle prefix completion mode
-  /fim         - Toggle Fill-in-the-Middle completion
-  /cache       - Toggle context caching
+  /beta        - Toggle beta API endpoint
+  /prefix      - Toggle prefix completion mode (last user msg becomes assistant prefix)
+  /fim         - Toggle Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)
+  /cache       - Show context caching status (automatic, no toggle needed)
   /models      - List available models
   /model X     - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
-  /temp X      - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
+  /temp X      - Set temperature (0-2) or preset (coding/data/chat/translation/creative)
   /freq X      - Set frequency penalty (-2 to 2)
   /pres X      - Set presence penalty (-2 to 2)
   /top_p X     - Set top_p sampling (0 to 1)
@@ -164,7 +189,7 @@ class CommandHandler:
   /clearfuncs  - Clear all registered functions
   /clear       - Clear conversation history
   /history     - Display conversation history
-  /balance     - Check account balance
+  /balance     - Show account balance instructions
   /about       - Show API information and contact details
   /help        - Show this help message
   quit/exit    - Exit the program
@@ -174,7 +199,8 @@ Notes:
   - deepseek-reasoner is DeepSeek-V3.2 (Thinking Mode) with 128K context, 64K output
   - deepseek-coder is DeepSeek-V2.5 (may redirect to deepseek-chat)
   - Temperature presets:
-    coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5"""
+    coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5
+  - Context caching is automatic on the DeepSeek API (no manual toggle required)"""
 
     def get_about_message(self) -> str:
         """Get about message with API information"""

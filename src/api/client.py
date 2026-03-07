@@ -77,10 +77,9 @@ class APIClient:
             functions: List[Dict[str, Any]] = kwargs.pop("functions")
             kwargs["tools"] = [{"type": "function", "function": f} for f in functions]
         
-        try:
-            return self.client.chat.completions.create(**kwargs)
-        except Exception as e:
-            raise DeepSeekError(f"Failed to create chat completion: {str(e)}")
+        # Let SDK exceptions propagate directly so callers can inspect
+        # status_code, headers, code, etc. (APIError, RateLimitError, …)
+        return self.client.chat.completions.create(**kwargs)
 
     def update_api_key(self, new_key: str) -> None:
         """Update API key and recreate client

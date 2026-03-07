@@ -1,6 +1,5 @@
 """Main CLI class for DeepSeek"""
 
-import json
 import argparse
 from typing import Optional, Tuple
 from rich.console import Console
@@ -49,24 +48,20 @@ class DeepSeekCLI:
             # Add user message to history
             self.chat_handler.add_message("user", user_input)
 
-            # Set raw mode in chat handler
-            original_raw_mode = getattr(self.chat_handler, 'raw_mode', False)
+            original_raw_mode = self.chat_handler.raw_mode
             self.chat_handler.raw_mode = raw
 
-            # Prepare request parameters
-            kwargs = self.chat_handler.prepare_chat_request()
-
             def make_request():
+                # Rebuild kwargs on every attempt so prefix-mode and any
+                # state changes (e.g. new API key after 401 recovery) apply.
+                kwargs = self.chat_handler.prepare_chat_request()
                 response = self.api_client.create_chat_completion(**kwargs)
                 return self.chat_handler.handle_response(response)
 
-            # Execute request with retry logic
-            response = self.error_handler.retry_with_backoff(make_request, self.api_client)
-            
-            # Restore original raw mode
+            result = self.error_handler.retry_with_backoff(make_request, self.api_client)
+
             self.chat_handler.raw_mode = original_raw_mode
-            
-            return response
+            return result
 
         except (KeyError, ValueError, TypeError) as e:
             console.print(f"[red]Error processing request: {str(e)}[/red]")
@@ -96,19 +91,9 @@ class DeepSeekCLI:
                     console.print(f"\n{result[1]}")
                 continue
 
-            # Get and handle response
-            assistant_response = self.get_completion(user_input)
-            if assistant_response:
-                if self.chat_handler.json_mode and not self.chat_handler.stream:
-                    try:
-                        # Pretty print JSON response
-                        parsed = json.loads(assistant_response)
-                        console.print("\n[bold cyan]Assistant:[/bold cyan]", json.dumps(parsed, indent=2))
-                    except json.JSONDecodeError:
-                        console.print("\n[bold cyan]Assistant:[/bold cyan]", assistant_response)
-                elif not self.chat_handler.stream:
-                    # print("\nAssistant:", assistant_response)
-                    pass
+            # Get and handle response — handle_response already prints the
+            # panel (or streams), so no additional output is needed here.
+            self.get_completion(user_input)
 
     def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False) -> str:
         """Run a single query and return the response"""
@@ -169,7 +154,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
-    parser.add_argument("-s", "--stream", action="store_true", help="Enable stream mode")
+    parser.add_argument("-s", "--stream", action="store_true", help="Enable streaming mode")
+    parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming mode")
     return parser.parse_args()
 
 def main() -> None:
