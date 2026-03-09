@@ -128,17 +128,49 @@ deepseek -q "Write a Python function to calculate factorial" -r
 # Set a custom system message
 deepseek -S "You are a Rust expert." -q "Explain lifetimes"
 
+# Enable JSON output mode
+deepseek -q "List 3 European capitals" --json
+
+# Set temperature and a stop sequence
+deepseek -q "Tell me a story" --temp 1.3 --stop "The End"
+
+# Multiple stop sequences
+deepseek -q "Count to five" --stop "5" --stop "five"
+
+# Start the REPL with prefix completion and a lower temperature
+deepseek --prefix --temp 0.0
+
+# Enable Fill-in-the-Middle mode via CLI
+deepseek --fim -q "def add(<fim_prefix>):<fim_suffix>    pass"
+
 # Combine options
 deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r -S "You are an expert Python developer."
 ```
 
-Available inline mode options:
-- `-q, --query`: The query to send to the model
-- `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
-- `-r, --raw`: Output raw response without token usage information
-- `-S, --system`: Set a custom system message (default: `"You are a helpful assistant."`)
-- `-s, --stream`: Enable streaming mode (enabled by default)
+Available options (apply to both inline and interactive modes unless noted):
+
+**Core**
+- `-q, --query TEXT`: Run in inline mode with the given query
+- `-m, --model MODEL`: Model to use (`deepseek-chat`, `deepseek-coder`, `deepseek-reasoner`)
+- `-r, --raw`: Output raw response without token usage information (inline only)
+- `-S, --system TEXT`: Set the system message (default: `"You are a helpful assistant."`)
+- `-s, --stream`: Enable streaming mode
 - `--no-stream`: Disable streaming mode
+
+**Output / Mode**
+- `--json`: Enable JSON output mode (`response_format: json_object`)
+- `--beta`: Enable the beta API endpoint
+- `--prefix`: Enable prefix completion mode (last user message becomes the assistant prefix)
+- `--fim`: Enable Fill-in-the-Middle mode (use `<fim_prefix>`/`<fim_suffix>` tags in your query)
+
+**Sampling & Penalties**
+- `--temp FLOAT`: Set temperature (0–2)
+- `--freq FLOAT`: Set frequency penalty (−2 to 2)
+- `--pres FLOAT`: Set presence penalty (−2 to 2)
+- `--top-p FLOAT`: Set top-p sampling (0–1)
+
+**Stop Sequences**
+- `--stop SEQ`: Add a stop sequence (can be repeated: `--stop A --stop B`)
 
 ### Troubleshooting
 
