@@ -95,6 +95,36 @@ class DeepSeekCLI:
             # panel (or streams), so no additional output is needed here.
             self.get_completion(user_input)
 
+    def _apply_cli_args(self, args: argparse.Namespace) -> None:
+        """Apply CLI flags to the chat/api state before a session starts.
+
+        Called from main() after DeepSeekCLI is constructed, and before
+        run() / run_inline_query() so that the session starts with the
+        settings the user requested on the command line.
+
+        Note: json_mode is set directly (not via toggle_json_mode) so that
+        the user-supplied --system message is not overwritten.
+        """
+        if getattr(args, "json", False):
+            self.chat_handler.json_mode = True
+        if getattr(args, "beta", False):
+            self.api_client.toggle_beta()
+        if getattr(args, "prefix", False):
+            self.chat_handler.prefix_mode = True
+        if getattr(args, "fim", False):
+            self.chat_handler.fim_mode = True
+        if getattr(args, "temp", None) is not None:
+            self.chat_handler.set_temperature(str(args.temp))
+        if getattr(args, "freq", None) is not None:
+            self.chat_handler.set_frequency_penalty(args.freq)
+        if getattr(args, "pres", None) is not None:
+            self.chat_handler.set_presence_penalty(args.pres)
+        if getattr(args, "top_p", None) is not None:
+            self.chat_handler.set_top_p(args.top_p)
+        if getattr(args, "stop", None):
+            for seq in args.stop:
+                self.chat_handler.add_stop_sequence(seq)
+
     def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False,
                           system_message: str = "You are a helpful assistant.") -> str:
         """Run a single query and return the response"""
@@ -151,19 +181,51 @@ class DeepSeekCLI:
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models")
+
+    # Core options
     parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
     parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
     parser.add_argument("-S", "--system", type=str, default="You are a helpful assistant.",
                         help="Set the system message (default: 'You are a helpful assistant.')")
+
+    # Streaming
     parser.add_argument("-s", "--stream", action="store_true", help="Enable streaming mode")
     parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming mode")
+
+    # Output / mode flags (mirror REPL commands)
+    parser.add_argument("--json", action="store_true", default=False,
+                        help="Enable JSON output mode (sets response_format to json_object)")
+    parser.add_argument("--beta", action="store_true", default=False,
+                        help="Enable beta API endpoint")
+    parser.add_argument("--prefix", action="store_true", default=False,
+                        help="Enable prefix completion mode (last user message becomes assistant prefix)")
+    parser.add_argument("--fim", action="store_true", default=False,
+                        help="Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)")
+
+    # Sampling / penalty parameters (mirror REPL /temp, /freq, /pres, /top_p)
+    parser.add_argument("--temp", type=float, default=None, metavar="FLOAT",
+                        help="Set temperature (0-2, or use REPL presets via /temp inside session)")
+    parser.add_argument("--freq", type=float, default=None, metavar="FLOAT",
+                        help="Set frequency penalty (-2 to 2)")
+    parser.add_argument("--pres", type=float, default=None, metavar="FLOAT",
+                        help="Set presence penalty (-2 to 2)")
+    parser.add_argument("--top-p", type=float, default=None, dest="top_p", metavar="FLOAT",
+                        help="Set top_p sampling (0 to 1)")
+
+    # Stop sequences (repeatable, mirrors /stop)
+    parser.add_argument("--stop", type=str, action="append", default=None, metavar="SEQ",
+                        help="Add a stop sequence (can be repeated: --stop A --stop B)")
+
     return parser.parse_args()
 
 def main() -> None:
     args = parse_arguments()
     cli = DeepSeekCLI(stream=args.stream)
+
+    # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
+    cli._apply_cli_args(args)
 
     # Check if running in inline mode
     if args.query:

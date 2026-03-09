@@ -482,6 +482,151 @@ class TestCLIArguments(unittest.TestCase):
         args = self._parse([])
         self.assertEqual(args.system, "You are a helpful assistant.")
 
+    def test_json_flag(self):
+        args = self._parse(["--json"])
+        self.assertTrue(args.json)
+
+    def test_json_flag_default_false(self):
+        args = self._parse([])
+        self.assertFalse(args.json)
+
+    def test_beta_flag(self):
+        args = self._parse(["--beta"])
+        self.assertTrue(args.beta)
+
+    def test_prefix_flag(self):
+        args = self._parse(["--prefix"])
+        self.assertTrue(args.prefix)
+
+    def test_fim_flag(self):
+        args = self._parse(["--fim"])
+        self.assertTrue(args.fim)
+
+    def test_temp_flag(self):
+        args = self._parse(["--temp", "0.7"])
+        self.assertAlmostEqual(args.temp, 0.7)
+
+    def test_temp_flag_default_none(self):
+        args = self._parse([])
+        self.assertIsNone(args.temp)
+
+    def test_freq_flag(self):
+        args = self._parse(["--freq", "1.5"])
+        self.assertAlmostEqual(args.freq, 1.5)
+
+    def test_pres_flag(self):
+        args = self._parse(["--pres", "-0.5"])
+        self.assertAlmostEqual(args.pres, -0.5)
+
+    def test_top_p_flag(self):
+        args = self._parse(["--top-p", "0.9"])
+        self.assertAlmostEqual(args.top_p, 0.9)
+
+    def test_stop_flag_single(self):
+        args = self._parse(["--stop", "END"])
+        self.assertEqual(args.stop, ["END"])
+
+    def test_stop_flag_multiple(self):
+        args = self._parse(["--stop", "END", "--stop", "STOP"])
+        self.assertEqual(args.stop, ["END", "STOP"])
+
+    def test_stop_flag_default_none(self):
+        args = self._parse([])
+        self.assertIsNone(args.stop)
+
+
+# ---------------------------------------------------------------------------
+# _apply_cli_args tests
+# ---------------------------------------------------------------------------
+
+class TestApplyCliArgs(unittest.TestCase):
+    """_apply_cli_args must translate argparse flags into chat_handler state."""
+
+    def _make_cli(self):
+        import types as _types
+        import sys as _sys
+        pyfiglet_stub = _types.ModuleType("pyfiglet")
+        pyfiglet_stub.Figlet = MagicMock(return_value=MagicMock(renderText=MagicMock(return_value="")))
+        with patch.dict(_sys.modules, {"pyfiglet": pyfiglet_stub}):
+            import importlib
+            import cli.deepseek_cli as _m
+            importlib.reload(_m)
+
+            api_client = _make_api_client_mock()
+            chat_handler = _make_chat_handler()
+
+            cli = _m.DeepSeekCLI.__new__(_m.DeepSeekCLI)
+            cli.api_client = api_client
+            cli.chat_handler = chat_handler
+            cli.command_handler = MagicMock()
+            cli.error_handler = MagicMock()
+            return cli, _m
+
+    def _args(self, **kwargs):
+        import argparse
+        defaults = dict(json=False, beta=False, prefix=False, fim=False,
+                        temp=None, freq=None, pres=None, top_p=None, stop=None)
+        defaults.update(kwargs)
+        return argparse.Namespace(**defaults)
+
+    def test_json_flag_sets_json_mode(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(json=True))
+        self.assertTrue(cli.chat_handler.json_mode)
+
+    def test_json_flag_false_leaves_json_mode_off(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(json=False))
+        self.assertFalse(cli.chat_handler.json_mode)
+
+    def test_beta_flag_calls_toggle_beta(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(beta=True))
+        cli.api_client.toggle_beta.assert_called_once()
+
+    def test_prefix_flag_sets_prefix_mode(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(prefix=True))
+        self.assertTrue(cli.chat_handler.prefix_mode)
+
+    def test_fim_flag_sets_fim_mode(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(fim=True))
+        self.assertTrue(cli.chat_handler.fim_mode)
+
+    def test_temp_flag_sets_temperature(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(temp=0.5))
+        self.assertAlmostEqual(cli.chat_handler.temperature, 0.5)
+
+    def test_freq_flag_sets_frequency_penalty(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(freq=1.0))
+        self.assertAlmostEqual(cli.chat_handler.frequency_penalty, 1.0)
+
+    def test_pres_flag_sets_presence_penalty(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(pres=-1.0))
+        self.assertAlmostEqual(cli.chat_handler.presence_penalty, -1.0)
+
+    def test_top_p_flag_sets_top_p(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(top_p=0.8))
+        self.assertAlmostEqual(cli.chat_handler.top_p, 0.8)
+
+    def test_stop_flag_adds_stop_sequences(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args(stop=["END", "STOP"]))
+        self.assertEqual(cli.chat_handler.stop_sequences, ["END", "STOP"])
+
+    def test_no_flags_leaves_defaults_unchanged(self):
+        cli, _ = self._make_cli()
+        cli._apply_cli_args(self._args())
+        self.assertFalse(cli.chat_handler.json_mode)
+        self.assertFalse(cli.chat_handler.prefix_mode)
+        self.assertEqual(cli.chat_handler.stop_sequences, [])
+        cli.api_client.toggle_beta.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
