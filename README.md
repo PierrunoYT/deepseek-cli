@@ -125,14 +125,18 @@ deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder
 # Get raw output without token usage information
 deepseek -q "Write a Python function to calculate factorial" -r
 
+# Set a custom system message
+deepseek -S "You are a Rust expert." -q "Explain lifetimes"
+
 # Combine options
-deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r
+deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r -S "You are an expert Python developer."
 ```
 
 Available inline mode options:
 - `-q, --query`: The query to send to the model
 - `-m, --model`: The model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)
 - `-r, --raw`: Output raw response without token usage information
+- `-S, --system`: Set a custom system message (default: `"You are a helpful assistant."`)
 - `-s, --stream`: Enable streaming mode (enabled by default)
 - `--no-stream`: Disable streaming mode
 
@@ -157,6 +161,8 @@ Basic Commands:
 - `/help` - Show help message
 - `/models` - List available models
 - `/model X` - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
+- `/system X` - Set a custom system message mid-session
+- `/system` - Show the current system message
 - `/clear` - Clear conversation history
 - `/history` - Display conversation history
 - `/about` - Show API information
