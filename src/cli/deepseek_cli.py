@@ -70,10 +70,10 @@ class DeepSeekCLI:
             console.print(f"[red]Unexpected error: {str(e)}[/red]")
             return None
 
-    def run(self) -> None:
+    def run(self, system_message: str = "You are a helpful assistant.") -> None:
         """Run the CLI interface"""
         # Set initial system message
-        self.chat_handler.set_system_message("You are a helpful assistant.")
+        self.chat_handler.set_system_message(system_message)
 
         self._print_welcome()
 
@@ -95,10 +95,11 @@ class DeepSeekCLI:
             # panel (or streams), so no additional output is needed here.
             self.get_completion(user_input)
 
-    def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False) -> str:
+    def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False,
+                          system_message: str = "You are a helpful assistant.") -> str:
         """Run a single query and return the response"""
         # Set initial system message
-        self.chat_handler.set_system_message("You are a helpful assistant.")
+        self.chat_handler.set_system_message(system_message)
 
         # Set model if specified
         if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
@@ -154,6 +155,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
                         help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
     parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
+    parser.add_argument("-S", "--system", type=str, default="You are a helpful assistant.",
+                        help="Set the system message (default: 'You are a helpful assistant.')")
     parser.add_argument("-s", "--stream", action="store_true", help="Enable streaming mode")
     parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming mode")
     return parser.parse_args()
@@ -165,11 +168,11 @@ def main() -> None:
     # Check if running in inline mode
     if args.query:
         # Run in inline mode
-        response = cli.run_inline_query(args.query, args.model, args.raw)
+        response = cli.run_inline_query(args.query, args.model, args.raw, args.system)
         print(response)
     else:
         # Run in interactive mode
-        cli.run()
+        cli.run(args.system)
 
 if __name__ == "__main__":
     main()

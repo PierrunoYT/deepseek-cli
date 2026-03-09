@@ -402,6 +402,36 @@ class TestCommandHandlerAdvertisedCommands(unittest.TestCase):
         result = self.cmd.handle_command("/nonexistent")
         self.assertEqual(result, (None, None))
 
+    # /system
+    def test_system_set_updates_message(self):
+        ok, msg = self.cmd.handle_command("/system You are a pirate.")
+        self.assertTrue(ok)
+        self.assertIn("You are a pirate.", msg)
+        self.assertEqual(self.chat_handler.messages[0]["content"], "You are a pirate.")
+
+    def test_system_set_with_no_content_shows_current(self):
+        # "/system " (trailing space) strips to "/system" → shows current message
+        self.chat_handler.set_system_message("Initial message.")
+        ok, msg = self.cmd.handle_command("/system ")
+        self.assertTrue(ok)
+        self.assertIn("Current system message", msg)
+
+    def test_system_show_current(self):
+        self.chat_handler.set_system_message("Be concise.")
+        ok, msg = self.cmd.handle_command("/system")
+        self.assertTrue(ok)
+        self.assertIn("Be concise.", msg)
+
+    def test_system_show_none_when_no_system_message(self):
+        self.chat_handler.messages = []
+        ok, msg = self.cmd.handle_command("/system")
+        self.assertTrue(ok)
+        self.assertIn("(none)", msg)
+
+    def test_help_mentions_system(self):
+        ok, msg = self.cmd.handle_command("/help")
+        self.assertIn("/system", msg)
+
 
 # ---------------------------------------------------------------------------
 # CLI argument tests — --no-stream flag
@@ -439,6 +469,18 @@ class TestCLIArguments(unittest.TestCase):
         self.assertEqual(args.query, "hello")
         self.assertEqual(args.model, "deepseek-chat")
         self.assertTrue(args.raw)
+
+    def test_system_flag_long(self):
+        args = self._parse(["--system", "You are a pirate."])
+        self.assertEqual(args.system, "You are a pirate.")
+
+    def test_system_flag_short(self):
+        args = self._parse(["-S", "Be concise."])
+        self.assertEqual(args.system, "Be concise.")
+
+    def test_system_flag_default(self):
+        args = self._parse([])
+        self.assertEqual(args.system, "You are a helpful assistant.")
 
 
 if __name__ == "__main__":

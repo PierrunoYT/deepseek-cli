@@ -131,6 +131,19 @@ class CommandHandler:
             self.chat_handler.clear_functions()
             return True, "All functions cleared"
 
+        elif command_lower.startswith('/system '):
+            message = command_raw[8:].strip()
+            if message:
+                self.chat_handler.set_system_message(message)
+                return True, f"System message set to: {message}"
+            return True, "Usage: /system <message>"
+
+        elif command_lower == '/system':
+            current = (self.chat_handler.messages[0]["content"]
+                       if self.chat_handler.messages and self.chat_handler.messages[0]["role"] == "system"
+                       else "(none)")
+            return True, f"Current system message: {current}"
+
         elif command_lower == '/clear':
             self.chat_handler.clear_history()
             return True, "Conversation history cleared"
@@ -187,6 +200,8 @@ class CommandHandler:
   /clearstop   - Clear all stop sequences
   /function {} - Add a function definition (JSON format)
   /clearfuncs  - Clear all registered functions
+  /system      - Show the current system message
+  /system X    - Set a custom system message
   /clear       - Clear conversation history
   /history     - Display conversation history
   /balance     - Show account balance instructions
