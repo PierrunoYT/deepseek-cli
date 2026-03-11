@@ -41,6 +41,10 @@ class CommandHandler:
         if command_lower in ['quit', 'exit', '/quit', '/exit']:
             return False, "Goodbye!"
 
+        elif command_lower == '/multiline':
+            # This would need access to the CLI instance, so for now we'll provide guidance
+            return True, "Multiline mode can be enabled via --multiline flag when starting the CLI"
+
         elif command_lower == '/raw':
             self.chat_handler.raw_mode = not self.chat_handler.raw_mode
             return True, f"Raw mode {'enabled' if self.chat_handler.raw_mode else 'disabled'}"
@@ -195,6 +199,7 @@ class CommandHandler:
     def get_help_message(self) -> str:
         """Get help message with all available commands"""
         return """Available commands:
+  /multiline    - Show multiline mode information (enable with --multiline flag)
   /raw         - Toggle raw output mode (bypass formatting for edge cases)
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode

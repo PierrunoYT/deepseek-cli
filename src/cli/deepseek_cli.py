@@ -21,6 +21,34 @@ try:
 except ImportError:
     pass
 
+def multiline_input(prompt: str) -> str:
+    """Get multiline input with Enter for newlines, Ctrl+D or empty line to submit"""
+    lines = []
+    
+    console.print(prompt + " [dim](Enter for newline, Ctrl+D or empty line to submit)[/dim]")
+    
+    try:
+        while True:
+            try:
+                line = input()
+                
+                # Empty line submits
+                if not line:
+                    break
+                    
+                lines.append(line)
+                console.print("... ", end="")
+                
+            except EOFError:
+                # Ctrl+D pressed, finish input
+                break
+                
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Input cancelled[/yellow]")
+        return ""
+    
+    return '\n'.join(lines)
+
 # Simplified import handling with clear fallback chain
 try:
     # When installed via pip/pipx (package_dir={"": "src"})
@@ -39,11 +67,12 @@ except ImportError:
     
 
 class DeepSeekCLI:
-    def __init__(self, *, stream: bool = False) -> None:
+    def __init__(self, *, stream: bool = False, multiline: bool = False) -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
+        self.multiline = multiline
         
         # Register cleanup handlers
         atexit.register(self._cleanup)
@@ -97,10 +126,21 @@ class DeepSeekCLI:
         self.chat_handler.set_system_message(system_message)
 
         self._print_welcome()
+        
+        # Show multiline mode status if enabled
+        if self.multiline:
+            console.print("[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n")
 
         while True:
-            # Prompt user input with a styled label
-            user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+            # Prompt user input with multiline support if enabled
+            if self.multiline:
+                user_input = multiline_input("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+            else:
+                user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+            
+            # Handle empty input (just pressing Enter)
+            if not user_input:
+                continue
             # Handle commands
             result = self.command_handler.handle_command(user_input)
             
@@ -230,6 +270,10 @@ def parse_arguments() -> argparse.Namespace:
                         help="Enable prefix completion mode (last user message becomes assistant prefix)")
     parser.add_argument("--fim", action="store_true", default=False,
                         help="Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)")
+    
+    # Input behavior
+    parser.add_argument("--multiline", action="store_true", default=False,
+                        help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit)")
 
     # Sampling / penalty parameters (mirror REPL /temp, /freq, /pres, /top_p)
     parser.add_argument("--temp", type=float, default=None, metavar="FLOAT",
@@ -249,7 +293,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_arguments()
-    cli = DeepSeekCLI(stream=args.stream)
+    cli = DeepSeekCLI(stream=args.stream, multiline=args.multiline)
 
     # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
     cli._apply_cli_args(args)

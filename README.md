@@ -18,6 +18,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - **Settings persistence** for model preferences and configurations
   - Context caching for better performance and cost savings
   - Inline mode for quick queries
+  - **Multiline input support** for complex prompts
   - 128K context window for all models
 
 - 🚀 Advanced Features
@@ -144,9 +145,21 @@ deepseek --prefix --temp 0.0
 # Enable Fill-in-the-Middle mode via CLI
 deepseek --fim -q "def add(<fim_prefix>):<fim_suffix>    pass"
 
+# Enable multiline input mode for complex prompts
+deepseek --multiline
+
+# Combine options with multiline
+deepseek --multiline --prefix --temp 0.0
+
 # Combine options
 deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r -S "You are an expert Python developer."
-```
+
+# Multiline example
+deepseek --multiline -q "
+def calculate_sum(a, b):
+    return a + b
+print(calculate_sum(2, 3))
+"
 
 Available options (apply to both inline and interactive modes unless noted):
 
@@ -163,6 +176,7 @@ Available options (apply to both inline and interactive modes unless noted):
 - `--beta`: Enable the beta API endpoint
 - `--prefix`: Enable prefix completion mode (last user message becomes the assistant prefix)
 - `--fim`: Enable Fill-in-the-Middle mode (use `<fim_prefix>`/`<fim_suffix>` tags in your query)
+- `--multiline`: Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit)
 
 **Sampling & Penalties**
 - `--temp FLOAT`: Set temperature (0–2)
@@ -200,6 +214,7 @@ Basic Commands:
 - `/history` - Display conversation history
 - `/about` - Show API information
 - `/balance` - Check account balance
+- `/multiline` - Show multiline mode information (enable with --multiline flag)
 
 Model Settings:
 - `/temp X` - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
@@ -274,6 +289,34 @@ Use XML-style tags to define the gap:
 ```
 <fim_prefix>def calculate_sum(a, b):</fim_prefix><fim_suffix>    return result</fim_suffix>
 ```
+
+#### Multiline Input
+Enable multiline input mode for complex prompts that span multiple lines:
+
+**Usage:**
+```bash
+# Enable multiline mode for interactive sessions
+deepseek --multiline
+
+# Use multiline in inline mode
+deepseek --multiline -q "
+def calculate_sum(a, b):
+    return a + b
+print(calculate_sum(2, 3))
+"
+```
+
+**Controls:**
+- Enter: Add new line
+- Empty line (press Enter twice): Submit input
+- Ctrl+D: Submit input (alternative)
+- Ctrl+C: Cancel input
+
+**Best for:**
+- Code snippets and functions
+- Long-form text generation
+- Complex prompts with structure
+- Multi-step instructions
 
 #### JSON Mode
 Forces model to output valid JSON. Example system message:
