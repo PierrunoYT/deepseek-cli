@@ -55,6 +55,7 @@ class CommandHandler:
 
         elif command_lower == '/prefix':
             self.chat_handler.prefix_mode = not self.chat_handler.prefix_mode
+            self.chat_handler.save_state()
             return True, f"Prefix mode {'enabled' if self.chat_handler.prefix_mode else 'disabled'}"
 
         elif command_lower == '/models':
@@ -111,17 +112,20 @@ class CommandHandler:
         elif command_lower.startswith('/stop '):
             sequence = command_raw[6:]
             if self.chat_handler.add_stop_sequence(sequence):
+                self.chat_handler.save_state()
                 return True, f"Stop sequence added: {sequence}"
             return True, "Maximum number of stop sequences reached"
 
         elif command_lower == '/clearstop':
             self.chat_handler.clear_stop_sequences()
+            self.chat_handler.save_state()
             return True, "All stop sequences cleared"
 
         elif command_lower.startswith('/function '):
             try:
                 function = json.loads(command_raw[10:])
                 if self.chat_handler.add_function(function):
+                    self.chat_handler.save_state()
                     return True, f"Function '{function.get('name', 'unnamed')}' added"
                 return True, "Maximum number of functions reached"
             except json.JSONDecodeError:
@@ -129,6 +133,7 @@ class CommandHandler:
 
         elif command_lower == '/clearfuncs':
             self.chat_handler.clear_functions()
+            self.chat_handler.save_state()
             return True, "All functions cleared"
 
         elif command_lower.startswith('/system '):
@@ -146,6 +151,7 @@ class CommandHandler:
 
         elif command_lower == '/clear':
             self.chat_handler.clear_history()
+            self.chat_handler.save_state()
             return True, "Conversation history cleared"
 
         elif command_lower == '/history':
@@ -161,7 +167,8 @@ class CommandHandler:
             return True, "Conversation history:\n" + "\n".join(lines)
 
         elif command_lower == '/fim':
-            self.chat_handler.fim_mode = not getattr(self.chat_handler, 'fim_mode', False)
+            self.chat_handler.fim_mode = not self.chat_handler.fim_mode
+            self.chat_handler.save_state()
             return True, f"FIM (Fill-in-the-Middle) mode {'enabled' if self.chat_handler.fim_mode else 'disabled'}"
 
         elif command_lower == '/cache':

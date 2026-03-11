@@ -1,6 +1,9 @@
 """Main CLI class for DeepSeek"""
 
 import argparse
+import atexit
+import signal
+import sys
 from typing import Optional, Tuple
 from rich.console import Console
 from rich.panel import Panel
@@ -41,6 +44,24 @@ class DeepSeekCLI:
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
+        
+        # Register cleanup handlers
+        atexit.register(self._cleanup)
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _cleanup(self) -> None:
+        """Cleanup function called on exit"""
+        try:
+            self.chat_handler.save_state()
+        except Exception:
+            pass  # Silently fail during cleanup
+
+    def _signal_handler(self, signum: int, frame) -> None:
+        """Handle shutdown signals"""
+        console.print("\n[yellow]Saving session data...[/yellow]")
+        self._cleanup()
+        sys.exit(0)
 
     def get_completion(self, user_input: str, raw: bool = False) -> Optional[str]:
         """Get completion from the API with retry logic"""
@@ -128,15 +149,21 @@ class DeepSeekCLI:
     def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False,
                           system_message: str = "You are a helpful assistant.") -> str:
         """Run a single query and return the response"""
-        # Set initial system message
-        self.chat_handler.set_system_message(system_message)
+        # Only set system message if no messages exist (don't override persisted system message)
+        if not self.chat_handler.messages:
+            self.chat_handler.set_system_message(system_message)
 
         # Set model if specified
         if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
             self.chat_handler.switch_model(model)
 
         # Get and return response
-        return self.get_completion(query, raw=raw) or "Error: Failed to get response"
+        result = self.get_completion(query, raw=raw) or "Error: Failed to get response"
+        
+        # Save state after inline query
+        self.chat_handler.save_state()
+        
+        return result
     def _print_welcome(self, style: str = 'simple') -> None:
         """Display a stylish welcome banner.
         

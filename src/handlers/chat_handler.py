@@ -22,6 +22,7 @@ try:
         MAX_HISTORY_LENGTH
     )
     from utils.version_checker import check_version
+    from utils.persistence import PersistenceManager
 except ImportError:
     # When running from source (development mode)
     from src.config.settings import (
@@ -34,6 +35,7 @@ except ImportError:
         MAX_HISTORY_LENGTH
     )
     from src.utils.version_checker import check_version
+    from src.utils.persistence import PersistenceManager
 
 class ChatHandler:
     def __init__(self, *, stream: bool = False) -> None:
@@ -44,6 +46,7 @@ class ChatHandler:
         self.max_tokens: int = DEFAULT_MAX_TOKENS
         self.functions: List[Dict[str, Any]] = []
         self.prefix_mode: bool = False
+        self.fim_mode: bool = False
         self.temperature: float = DEFAULT_TEMPERATURE
         self.frequency_penalty: float = 0.0
         self.presence_penalty: float = 0.0
@@ -53,9 +56,15 @@ class ChatHandler:
         self.raw_mode: bool = False
 
         self.console = Console()
+        
+        # Initialize persistence manager
+        self.persistence = PersistenceManager()
 
         # Check for new version with caching
         self._check_version_cached()
+        
+        # Load previous history and settings
+        self._load_persisted_data()
 
     def _check_version_cached(self) -> None:
         """Check for new version and cache the result"""
@@ -81,6 +90,8 @@ class ChatHandler:
             self.set_system_message("You are a helpful assistant. Please provide all responses in valid JSON format.")
         else:
             self.set_system_message("You are a helpful assistant.")
+        # Save settings after change
+        self.save_state()
 
     def toggle_stream(self) -> None:
         """Toggle streaming mode"""
@@ -91,6 +102,8 @@ class ChatHandler:
         if model in MODEL_CONFIGS:
             self.model = model
             self.max_tokens = MODEL_CONFIGS[model].get("default_max_tokens", DEFAULT_MAX_TOKENS)
+            # Save settings after change
+            self.save_state()
             return True
         return False
     
@@ -105,6 +118,8 @@ class ChatHandler:
             temp = float(temp_str)
             if 0 <= temp <= 2:
                 self.temperature = temp
+                # Save settings after change
+                self.save_state()
                 return True
             return False
         except ValueError:
@@ -112,6 +127,8 @@ class ChatHandler:
             preset = temp_str.lower()
             if preset in TEMPERATURE_PRESETS:
                 self.temperature = TEMPERATURE_PRESETS[preset]
+                # Save settings after change
+                self.save_state()
                 return True
             return False
 
@@ -119,6 +136,8 @@ class ChatHandler:
         """Set frequency penalty between -2.0 and 2.0"""
         if -2.0 <= penalty <= 2.0:
             self.frequency_penalty = penalty
+            # Save settings after change
+            self.save_state()
             return True
         return False
 
@@ -126,6 +145,8 @@ class ChatHandler:
         """Set presence penalty between -2.0 and 2.0"""
         if -2.0 <= penalty <= 2.0:
             self.presence_penalty = penalty
+            # Save settings after change
+            self.save_state()
             return True
         return False
 
@@ -133,6 +154,8 @@ class ChatHandler:
         """Set top_p between 0.0 and 1.0"""
         if 0.0 <= top_p <= 1.0:
             self.top_p = top_p
+            # Save settings after change
+            self.save_state()
             return True
         return False
 
@@ -372,3 +395,78 @@ class ChatHandler:
                 self.messages = [self.messages[0]] + self.messages[-(MAX_HISTORY_LENGTH-1):]
             else:
                 self.messages = self.messages[-MAX_HISTORY_LENGTH:]
+        
+        # Auto-save after adding messages
+        self.save_state()
+    
+    def _load_persisted_data(self) -> None:
+        """Load persisted history and settings"""
+        # Load history
+        loaded_messages = self.persistence.load_history()
+        if loaded_messages:
+            self.messages = loaded_messages
+        
+        # Load settings
+        loaded_settings = self.persistence.load_settings()
+        if loaded_settings:
+            self._apply_loaded_settings(loaded_settings)
+    
+    def _apply_loaded_settings(self, settings: Dict[str, Any]) -> None:
+        """Apply loaded settings to current state"""
+        if "model" in settings and settings["model"] in MODEL_CONFIGS:
+            self.model = settings["model"]
+            self.max_tokens = MODEL_CONFIGS[self.model].get("default_max_tokens", DEFAULT_MAX_TOKENS)
+        
+        if "temperature" in settings:
+            self.temperature = settings["temperature"]
+        
+        if "frequency_penalty" in settings:
+            self.frequency_penalty = settings["frequency_penalty"]
+        
+        if "presence_penalty" in settings:
+            self.presence_penalty = settings["presence_penalty"]
+        
+        if "top_p" in settings:
+            self.top_p = settings["top_p"]
+        
+        if "json_mode" in settings:
+            self.json_mode = settings["json_mode"]
+        
+        if "prefix_mode" in settings:
+            self.prefix_mode = settings["prefix_mode"]
+        
+        if "fim_mode" in settings:
+            self.fim_mode = settings["fim_mode"]
+        
+        if "stop_sequences" in settings:
+            self.stop_sequences = settings["stop_sequences"]
+        
+        if "functions" in settings:
+            self.functions = settings["functions"]
+    
+    def get_current_settings(self) -> Dict[str, Any]:
+        """Get current settings as a dictionary"""
+        return {
+            "model": self.model,
+            "temperature": self.temperature,
+            "frequency_penalty": self.frequency_penalty,
+            "presence_penalty": self.presence_penalty,
+            "top_p": self.top_p,
+            "json_mode": self.json_mode,
+            "prefix_mode": self.prefix_mode,
+            "fim_mode": self.fim_mode,
+            "stop_sequences": self.stop_sequences,
+            "functions": self.functions
+        }
+    
+    def save_state(self) -> bool:
+        """Save current history and settings to disk"""
+        history_success = self.persistence.save_history(self.messages)
+        settings_success = self.persistence.save_settings(self.get_current_settings())
+        return history_success and settings_success
+    
+    def clear_persisted_data(self) -> bool:
+        """Clear all persisted data from disk"""
+        history_success = self.persistence.clear_history()
+        settings_success = self.persistence.clear_settings()
+        return history_success and settings_success
