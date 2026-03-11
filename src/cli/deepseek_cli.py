@@ -10,7 +10,6 @@ from rich.panel import Panel
 from rich import box
 from rich.align import Align
 from rich.markdown import Markdown
-from rich.prompt import Prompt
 from rich.text import Text
 from pyfiglet import Figlet
 
@@ -138,7 +137,9 @@ class DeepSeekCLI:
                     if self.multiline:
                         user_input = multiline_input("[bold bright_magenta]> You[/bold bright_magenta]").strip()
                     else:
-                        user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+                        # Use plain input() instead of Prompt.ask() to avoid conflicts with readline
+                        console.print("[bold bright_magenta]> You[/bold bright_magenta]: ", end="")
+                        user_input = input().strip()
                     
                     # Handle empty input (just pressing Enter)
                     if not user_input:
