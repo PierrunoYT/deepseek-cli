@@ -16,37 +16,74 @@ from pyfiglet import Figlet
 console = Console()
 
 try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.key_binding import KeyBindings
+except ImportError:
+    PromptSession = None
+    KeyBindings = None
+
+try:
     import readline  # noqa
 except ImportError:
     pass
 
-def multiline_input(prompt: str) -> str:
-    """Get multiline input with Enter for newlines, Ctrl+D or empty line to submit"""
+def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
+    """Get multiline input with configurable submit behavior.
+
+    submit_mode:
+      - shift-enter: Enter inserts newline, Shift+Enter submits.
+      - empty-line: Enter inserts newline, a blank line submits.
+    """
+    if PromptSession and KeyBindings:
+        key_bindings = KeyBindings()
+
+        @key_bindings.add("enter")
+        def _(event):
+            if submit_mode == "empty-line" and event.current_buffer.document.current_line.strip() == "":
+                event.current_buffer.validate_and_handle()
+            else:
+                event.current_buffer.insert_text("\n")
+
+        @key_bindings.add("c-d")
+        def _(event):
+            event.current_buffer.validate_and_handle()
+
+        if submit_mode == "shift-enter":
+            @key_bindings.add("s-enter")
+            def _(event):
+                event.current_buffer.validate_and_handle()
+
+        session = PromptSession(multiline=True, key_bindings=key_bindings)
+        try:
+            return session.prompt(f"{prompt}: ")
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Input cancelled[/yellow]")
+            return ""
+        except EOFError:
+            return ""
+
     lines = []
-    
-    console.print(prompt + " [dim](Enter for newline, Ctrl+D or empty line to submit)[/dim]")
-    
+    fallback_help = "Enter for newline, Ctrl+D or empty line to submit"
+    if submit_mode == "shift-enter":
+        fallback_help += " (Shift+Enter requires prompt_toolkit)"
+
+    console.print(f"{prompt} [dim]({fallback_help})[/dim]")
+
     try:
         while True:
             try:
                 line = input()
-                
-                # Empty line submits
                 if not line:
                     break
-                    
                 lines.append(line)
                 console.print("... ", end="")
-                
             except EOFError:
-                # Ctrl+D pressed, finish input
                 break
-                
     except KeyboardInterrupt:
         console.print("\n[yellow]Input cancelled[/yellow]")
         return ""
-    
-    return '\n'.join(lines)
+
+    return "\n".join(lines)
 
 # Simplified import handling with clear fallback chain
 try:
@@ -66,12 +103,14 @@ except ImportError:
     
 
 class DeepSeekCLI:
-    def __init__(self, *, stream: bool = False, multiline: bool = False) -> None:
+    def __init__(self, *, stream: bool = False, multiline: bool = False,
+                 multiline_submit: str = "shift-enter") -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
         self.multiline = multiline
+        self.multiline_submit = multiline_submit
         
         # Register cleanup handlers
         atexit.register(self._cleanup)
@@ -128,14 +167,17 @@ class DeepSeekCLI:
         
         # Show multiline mode status if enabled
         if self.multiline:
-            console.print("[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n")
+            if self.multiline_submit == "shift-enter":
+                console.print("[cyan]Multiline mode enabled: Enter for newlines, Shift+Enter or Ctrl+D to submit[/cyan]\n")
+            else:
+                console.print("[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n")
 
         try:
             while True:
                 try:
                     # Prompt user input with multiline support if enabled
                     if self.multiline:
-                        user_input = multiline_input("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+                        user_input = multiline_input("> You", self.multiline_submit).strip()
                     else:
                         # Use plain input() instead of Prompt.ask() to avoid conflicts with readline
                         console.print("[bold bright_magenta]> You[/bold bright_magenta]: ", end="")
@@ -289,6 +331,8 @@ def parse_arguments() -> argparse.Namespace:
     # Input behavior
     parser.add_argument("--multiline", action="store_true", default=False,
                         help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit)")
+    parser.add_argument("--multiline-submit", type=str, choices=["shift-enter", "empty-line"], default="shift-enter",
+                        help="Multiline submit mode: shift-enter (default) or empty-line")
 
     # Sampling / penalty parameters (mirror REPL /temp, /freq, /pres, /top_p)
     parser.add_argument("--temp", type=float, default=None, metavar="FLOAT",
@@ -308,7 +352,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_arguments()
-    cli = DeepSeekCLI(stream=args.stream, multiline=args.multiline)
+    cli = DeepSeekCLI(stream=args.stream, multiline=args.multiline, multiline_submit=args.multiline_submit)
 
     # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
     cli._apply_cli_args(args)
