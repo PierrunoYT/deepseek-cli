@@ -14,7 +14,8 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 - 🔄 Advanced Conversation Features
   - Multi-round conversations with context preservation
   - System message customization
-  - Conversation history tracking
+  - **Conversation history persistence** across sessions
+  - **Settings persistence** for model preferences and configurations
   - Context caching for better performance and cost savings
   - Inline mode for quick queries
   - 128K context window for all models
