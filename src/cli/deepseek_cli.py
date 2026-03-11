@@ -131,30 +131,44 @@ class DeepSeekCLI:
         if self.multiline:
             console.print("[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n")
 
-        while True:
-            # Prompt user input with multiline support if enabled
-            if self.multiline:
-                user_input = multiline_input("[bold bright_magenta]> You[/bold bright_magenta]").strip()
-            else:
-                user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
-            
-            # Handle empty input (just pressing Enter)
-            if not user_input:
-                continue
-            # Handle commands
-            result = self.command_handler.handle_command(user_input)
-            
-            if result[0] is False:  # Exit
-                console.print(f"\n{result[1]}")
-                break
-            elif result[0] is True:  # Command handled
-                if result[1]:
-                    console.print(f"\n{result[1]}")
-                continue
+        try:
+            while True:
+                try:
+                    # Prompt user input with multiline support if enabled
+                    if self.multiline:
+                        user_input = multiline_input("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+                    else:
+                        user_input = Prompt.ask("[bold bright_magenta]> You[/bold bright_magenta]").strip()
+                    
+                    # Handle empty input (just pressing Enter)
+                    if not user_input:
+                        continue
+                    # Handle commands
+                    result = self.command_handler.handle_command(user_input)
+                    
+                    if result[0] is False:  # Exit
+                        console.print(f"\n{result[1]}")
+                        break
+                    elif result[0] is True:  # Command handled
+                        if result[1]:
+                            console.print(f"\n{result[1]}")
+                        continue
 
-            # Get and handle response — handle_response already prints the
-            # panel (or streams), so no additional output is needed here.
-            self.get_completion(user_input)
+                    # Get and handle response — handle_response already prints the
+                    # panel (or streams), so no additional output is needed here.
+                    self.get_completion(user_input)
+                    
+                except EOFError:
+                    # Ctrl+D pressed - exit gracefully
+                    console.print("\n[yellow]Exiting...[/yellow]")
+                    break
+                    
+        except KeyboardInterrupt:
+            # Ctrl+C pressed - exit gracefully
+            console.print("\n[yellow]Exiting...[/yellow]")
+        finally:
+            # Ensure cleanup happens
+            self._cleanup()
 
     def _apply_cli_args(self, args: argparse.Namespace) -> None:
         """Apply CLI flags to the chat/api state before a session starts.
