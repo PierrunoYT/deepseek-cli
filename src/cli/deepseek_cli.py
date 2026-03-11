@@ -104,7 +104,7 @@ except ImportError:
 
 class DeepSeekCLI:
     def __init__(self, *, stream: bool = False, multiline: bool = False,
-                 multiline_submit: str = "shift-enter") -> None:
+                 multiline_submit: str = "empty-line") -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
@@ -330,9 +330,9 @@ def parse_arguments() -> argparse.Namespace:
     
     # Input behavior
     parser.add_argument("--multiline", action="store_true", default=False,
-                        help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit)")
-    parser.add_argument("--multiline-submit", type=str, choices=["shift-enter", "empty-line"], default="shift-enter",
-                        help="Multiline submit mode: shift-enter (default) or empty-line")
+                        help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit by default)")
+    parser.add_argument("--multiline-submit", type=str, choices=["shift-enter", "empty-line"], default="empty-line",
+                        help="Multiline submit mode: empty-line (default) or shift-enter (requires terminal support)")
 
     # Sampling / penalty parameters (mirror REPL /temp, /freq, /pres, /top_p)
     parser.add_argument("--temp", type=float, default=None, metavar="FLOAT",
