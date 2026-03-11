@@ -38,8 +38,12 @@ class CommandHandler:
 
         command_lower = command_raw.lower()
 
-        if command_lower in ['quit', 'exit']:
+        if command_lower in ['quit', 'exit', '/quit', '/exit']:
             return False, "Goodbye!"
+
+        elif command_lower == '/raw':
+            self.chat_handler.raw_mode = not self.chat_handler.raw_mode
+            return True, f"Raw mode {'enabled' if self.chat_handler.raw_mode else 'disabled'}"
 
         elif command_lower == '/json':
             self.chat_handler.toggle_json_mode()
@@ -191,6 +195,7 @@ class CommandHandler:
     def get_help_message(self) -> str:
         """Get help message with all available commands"""
         return """Available commands:
+  /raw         - Toggle raw output mode (bypass formatting for edge cases)
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
   /beta        - Toggle beta API endpoint
@@ -214,7 +219,8 @@ class CommandHandler:
   /balance     - Show account balance instructions
   /about       - Show API information and contact details
   /help        - Show this help message
-  quit/exit    - Exit the program
+  /quit, /exit - Exit the program
+  quit, exit   - Exit the program
 
 Notes:
   - deepseek-chat is DeepSeek-V3.2 (Non-thinking Mode) with 128K context, 8K output
