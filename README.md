@@ -148,6 +148,9 @@ deepseek --fim -q "def add(<fim_prefix>):<fim_suffix>    pass"
 # Enable multiline input mode for complex prompts
 deepseek --multiline
 
+# Use Shift+Enter to submit (requires a terminal that distinguishes Shift+Enter)
+deepseek --multiline --multiline-submit shift-enter
+
 # Combine options with multiline
 deepseek --multiline --prefix --temp 0.0
 
@@ -176,7 +179,8 @@ Available options (apply to both inline and interactive modes unless noted):
 - `--beta`: Enable the beta API endpoint
 - `--prefix`: Enable prefix completion mode (last user message becomes the assistant prefix)
 - `--fim`: Enable Fill-in-the-Middle mode (use `<fim_prefix>`/`<fim_suffix>` tags in your query)
-- `--multiline`: Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit)
+- `--multiline`: Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit by default)
+- `--multiline-submit MODE`: How to submit in multiline mode: `empty-line` (default, press Enter on a blank line) or `shift-enter` (Shift+Enter — requires a terminal that distinguishes Shift+Enter from Enter, e.g. Kitty, WezTerm)
 
 **Sampling & Penalties**
 - `--temp FLOAT`: Set temperature (0–2)
@@ -306,9 +310,15 @@ print(calculate_sum(2, 3))
 "
 ```
 
-**Controls:**
+**Controls (default `empty-line` mode):**
 - Enter: Add new line
 - Empty line (press Enter twice): Submit input
+- Ctrl+D: Submit input (alternative)
+- Ctrl+C: Cancel input
+
+**Controls (`--multiline-submit shift-enter` mode, requires terminal support):**
+- Enter: Add new line
+- Shift+Enter: Submit input
 - Ctrl+D: Submit input (alternative)
 - Ctrl+C: Cancel input
 
