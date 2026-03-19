@@ -5,6 +5,7 @@ import atexit
 import signal
 import sys
 from typing import Optional, Tuple
+import os
 from rich.console import Console
 from rich.panel import Panel
 from rich import box
@@ -27,6 +28,7 @@ try:
 except ImportError:
     pass
 
+
 def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
     """Get multiline input with configurable submit behavior.
 
@@ -39,7 +41,10 @@ def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
 
         @key_bindings.add("enter")
         def _(event):
-            if submit_mode == "empty-line" and event.current_buffer.document.current_line.strip() == "":
+            if (
+                submit_mode == "empty-line"
+                and event.current_buffer.document.current_line.strip() == ""
+            ):
                 event.current_buffer.validate_and_handle()
             else:
                 event.current_buffer.insert_text("\n")
@@ -49,6 +54,7 @@ def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
             event.current_buffer.validate_and_handle()
 
         if submit_mode == "shift-enter":
+
             @key_bindings.add("s-enter")
             def _(event):
                 event.current_buffer.validate_and_handle()
@@ -85,6 +91,7 @@ def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
 
     return "\n".join(lines)
 
+
 # Simplified import handling with clear fallback chain
 try:
     # When installed via pip/pipx (package_dir={"": "src"})
@@ -100,18 +107,21 @@ except ImportError:
     from src.handlers.error_handler import ErrorHandler
 
 
-    
-
 class DeepSeekCLI:
-    def __init__(self, *, stream: bool = False, multiline: bool = False,
-                 multiline_submit: str = "empty-line") -> None:
+    def __init__(
+        self,
+        *,
+        stream: bool = False,
+        multiline: bool = False,
+        multiline_submit: str = "empty-line",
+    ) -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
         self.command_handler = CommandHandler(self.api_client, self.chat_handler)
         self.error_handler = ErrorHandler()
         self.multiline = multiline
         self.multiline_submit = multiline_submit
-        
+
         # Register cleanup handlers
         atexit.register(self._cleanup)
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -146,7 +156,9 @@ class DeepSeekCLI:
                 response = self.api_client.create_chat_completion(**kwargs)
                 return self.chat_handler.handle_response(response)
 
-            result = self.error_handler.retry_with_backoff(make_request, self.api_client)
+            result = self.error_handler.retry_with_backoff(
+                make_request, self.api_client
+            )
 
             self.chat_handler.raw_mode = original_raw_mode
             return result
@@ -164,31 +176,39 @@ class DeepSeekCLI:
         self.chat_handler.set_system_message(system_message)
 
         self._print_welcome()
-        
+
         # Show multiline mode status if enabled
         if self.multiline:
             if self.multiline_submit == "shift-enter":
-                console.print("[cyan]Multiline mode enabled: Enter for newlines, Shift+Enter or Ctrl+D to submit[/cyan]\n")
+                console.print(
+                    "[cyan]Multiline mode enabled: Enter for newlines, Shift+Enter or Ctrl+D to submit[/cyan]\n"
+                )
             else:
-                console.print("[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n")
+                console.print(
+                    "[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n"
+                )
 
         try:
             while True:
                 try:
                     # Prompt user input with multiline support if enabled
                     if self.multiline:
-                        user_input = multiline_input("> You", self.multiline_submit).strip()
+                        user_input = multiline_input(
+                            "> You", self.multiline_submit
+                        ).strip()
                     else:
                         # Use plain input() instead of Prompt.ask() to avoid conflicts with readline
-                        console.print("[bold bright_magenta]> You[/bold bright_magenta]: ", end="")
+                        console.print(
+                            "[bold bright_magenta]> You[/bold bright_magenta]: ", end=""
+                        )
                         user_input = input().strip()
-                    
+
                     # Handle empty input (just pressing Enter)
                     if not user_input:
                         continue
                     # Handle commands
                     result = self.command_handler.handle_command(user_input)
-                    
+
                     if result[0] is False:  # Exit
                         console.print(f"\n{result[1]}")
                         break
@@ -200,12 +220,12 @@ class DeepSeekCLI:
                     # Get and handle response — handle_response already prints the
                     # panel (or streams), so no additional output is needed here.
                     self.get_completion(user_input)
-                    
+
                 except EOFError:
                     # Ctrl+D pressed - exit gracefully
                     console.print("\n[yellow]Exiting...[/yellow]")
                     break
-                    
+
         except KeyboardInterrupt:
             # Ctrl+C pressed - exit gracefully
             console.print("\n[yellow]Exiting...[/yellow]")
@@ -243,8 +263,13 @@ class DeepSeekCLI:
             for seq in args.stop:
                 self.chat_handler.add_stop_sequence(seq)
 
-    def run_inline_query(self, query: str, model: Optional[str] = None, raw: bool = False,
-                          system_message: str = "You are a helpful assistant.") -> str:
+    def run_inline_query(
+        self,
+        query: str,
+        model: Optional[str] = None,
+        raw: bool = False,
+        system_message: str = "You are a helpful assistant.",
+    ) -> str:
         """Run a single query and return the response"""
         # Only set system message if no messages exist (don't override persisted system message)
         if not self.chat_handler.messages:
@@ -256,32 +281,33 @@ class DeepSeekCLI:
 
         # Get and return response
         result = self.get_completion(query, raw=raw) or "Error: Failed to get response"
-        
+
         # Save state after inline query
         self.chat_handler.save_state()
-        
+
         return result
-    def _print_welcome(self, style: str = 'simple') -> None:
+
+    def _print_welcome(self, style: str = "simple") -> None:
         """Display a stylish welcome banner.
-        
+
         Args:
             style: Banner style - 'simple' for minimal or 'fancy' for ASCII art
         """
 
-        if style == 'simple':
+        if style == "simple":
             panel = Panel(
                 Align.center(
                     "Use natural language to interact with AI.\nType /help for commands, or exit to quit.",
-                    vertical="middle"
+                    vertical="middle",
                 ),
                 title="💡 DeepSeek CLI",
                 border_style="cyan",
-                box=box.SIMPLE
+                box=box.SIMPLE,
             )
-            console.print(panel)        
-        else: 
-            fig = Figlet(font='slant')
-            ascii_title = fig.renderText('DeepSeek CLI')
+            console.print(panel)
+        else:
+            fig = Figlet(font="slant")
+            ascii_title = fig.renderText("DeepSeek CLI")
 
             # Apply gradient colors to ASCII art
             gradient_title = Text()
@@ -297,74 +323,206 @@ class DeepSeekCLI:
                 padding=(1, 2),
                 title="[bold #4BCFFF]🚀 Welcome 🚀[/bold #4BCFFF]",
                 subtitle="[italic #7A7CFF]Type 'exit' to quit[/italic #7A7CFF]",
-                expand=True
+                expand=True,
             )
             console.print(welcome_panel)
             console.print()
 
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models")
+    parser = argparse.ArgumentParser(
+        description="DeepSeek CLI - A powerful command-line interface for DeepSeek's AI models"
+    )
 
     # Core options
-    parser.add_argument("-q", "--query", type=str, help="Run in inline mode with the specified query")
-    parser.add_argument("-m", "--model", type=str, choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
-                        help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)")
-    parser.add_argument("-r", "--raw", action="store_true", help="Output raw response without token usage information")
-    parser.add_argument("-S", "--system", type=str, default="You are a helpful assistant.",
-                        help="Set the system message (default: 'You are a helpful assistant.')")
+    parser.add_argument(
+        "-q", "--query", type=str, help="Run in inline mode with the specified query"
+    )
+    parser.add_argument(
+        "--read",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help=(
+            "Read query text from FILE, or '-' to read from stdin (pipe). "
+            "When combined with -q/--query the file/pipe content is appended "
+            "after the query text separated by a newline."
+        ),
+    )
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+        help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)",
+    )
+    parser.add_argument(
+        "-r",
+        "--raw",
+        action="store_true",
+        help="Output raw response without token usage information",
+    )
+    parser.add_argument(
+        "-S",
+        "--system",
+        type=str,
+        default="You are a helpful assistant.",
+        help="Set the system message (default: 'You are a helpful assistant.')",
+    )
 
     # Streaming
-    parser.add_argument("-s", "--stream", action="store_true", help="Enable streaming mode")
-    parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming mode")
+    parser.add_argument(
+        "-s", "--stream", action="store_true", help="Enable streaming mode"
+    )
+    parser.add_argument(
+        "--no-stream",
+        dest="stream",
+        action="store_false",
+        help="Disable streaming mode",
+    )
 
     # Output / mode flags (mirror REPL commands)
-    parser.add_argument("--json", action="store_true", default=False,
-                        help="Enable JSON output mode (sets response_format to json_object)")
-    parser.add_argument("--beta", action="store_true", default=False,
-                        help="Enable beta API endpoint")
-    parser.add_argument("--prefix", action="store_true", default=False,
-                        help="Enable prefix completion mode (last user message becomes assistant prefix)")
-    parser.add_argument("--fim", action="store_true", default=False,
-                        help="Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)")
-    
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="Enable JSON output mode (sets response_format to json_object)",
+    )
+    parser.add_argument(
+        "--beta", action="store_true", default=False, help="Enable beta API endpoint"
+    )
+    parser.add_argument(
+        "--prefix",
+        action="store_true",
+        default=False,
+        help="Enable prefix completion mode (last user message becomes assistant prefix)",
+    )
+    parser.add_argument(
+        "--fim",
+        action="store_true",
+        default=False,
+        help="Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)",
+    )
+
     # Input behavior
-    parser.add_argument("--multiline", action="store_true", default=False,
-                        help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit by default)")
-    parser.add_argument("--multiline-submit", type=str, choices=["shift-enter", "empty-line"], default="empty-line",
-                        help="Multiline submit mode: empty-line (default) or shift-enter (requires terminal support)")
+    parser.add_argument(
+        "--multiline",
+        action="store_true",
+        default=False,
+        help="Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit by default)",
+    )
+    parser.add_argument(
+        "--multiline-submit",
+        type=str,
+        choices=["shift-enter", "empty-line"],
+        default="empty-line",
+        help="Multiline submit mode: empty-line (default) or shift-enter (requires terminal support)",
+    )
 
     # Sampling / penalty parameters (mirror REPL /temp, /freq, /pres, /top_p)
-    parser.add_argument("--temp", type=float, default=None, metavar="FLOAT",
-                        help="Set temperature (0-2, or use REPL presets via /temp inside session)")
-    parser.add_argument("--freq", type=float, default=None, metavar="FLOAT",
-                        help="Set frequency penalty (-2 to 2)")
-    parser.add_argument("--pres", type=float, default=None, metavar="FLOAT",
-                        help="Set presence penalty (-2 to 2)")
-    parser.add_argument("--top-p", type=float, default=None, dest="top_p", metavar="FLOAT",
-                        help="Set top_p sampling (0 to 1)")
+    parser.add_argument(
+        "--temp",
+        type=float,
+        default=None,
+        metavar="FLOAT",
+        help="Set temperature (0-2, or use REPL presets via /temp inside session)",
+    )
+    parser.add_argument(
+        "--freq",
+        type=float,
+        default=None,
+        metavar="FLOAT",
+        help="Set frequency penalty (-2 to 2)",
+    )
+    parser.add_argument(
+        "--pres",
+        type=float,
+        default=None,
+        metavar="FLOAT",
+        help="Set presence penalty (-2 to 2)",
+    )
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        default=None,
+        dest="top_p",
+        metavar="FLOAT",
+        help="Set top_p sampling (0 to 1)",
+    )
 
     # Stop sequences (repeatable, mirrors /stop)
-    parser.add_argument("--stop", type=str, action="append", default=None, metavar="SEQ",
-                        help="Add a stop sequence (can be repeated: --stop A --stop B)")
+    parser.add_argument(
+        "--stop",
+        type=str,
+        action="append",
+        default=None,
+        metavar="SEQ",
+        help="Add a stop sequence (can be repeated: --stop A --stop B)",
+    )
 
     return parser.parse_args()
 
+
+def _read_input(source: str) -> str:
+    """Read text from *source*.
+
+    Args:
+        source: A file path or ``'-'`` for stdin.
+
+    Returns:
+        The contents of the file / stdin as a string.
+
+    Raises:
+        SystemExit: When the file cannot be opened or stdin is a TTY (not piped).
+    """
+    if source == "-":
+        if sys.stdin.isatty():
+            console.print(
+                "[red]Error: --read - requires input to be piped or redirected "
+                "(stdin is a terminal).[/red]"
+            )
+            sys.exit(1)
+        return sys.stdin.read()
+
+    try:
+        with open(source, "r", encoding="utf-8") as fh:
+            return fh.read()
+    except OSError as exc:
+        console.print(f"[red]Error reading '{source}': {exc}[/red]")
+        sys.exit(1)
+
+
 def main() -> None:
     args = parse_arguments()
-    cli = DeepSeekCLI(stream=args.stream, multiline=args.multiline, multiline_submit=args.multiline_submit)
+
+    # Resolve the final query text, honouring --read / pipe input.
+    query: Optional[str] = args.query
+    if args.read is not None:
+        read_text = _read_input(args.read).strip()
+        if query:
+            query = query + "\n" + read_text
+        else:
+            query = read_text
+
+    cli = DeepSeekCLI(
+        stream=args.stream,
+        multiline=args.multiline,
+        multiline_submit=args.multiline_submit,
+    )
 
     # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
     cli._apply_cli_args(args)
 
     # Check if running in inline mode
-    if args.query:
+    if query:
         # Run in inline mode
-        response = cli.run_inline_query(args.query, args.model, args.raw, args.system)
+        response = cli.run_inline_query(query, args.model, args.raw, args.system)
         print(response)
     else:
         # Run in interactive mode
         cli.run(args.system)
+
 
 if __name__ == "__main__":
     main()

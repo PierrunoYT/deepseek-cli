@@ -18,7 +18,9 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - **Settings persistence** for model preferences and configurations
   - Context caching for better performance and cost savings
   - Inline mode for quick queries
+  - **Pipe / file input** — feed queries from stdin or a file with `--read`
   - **Multiline input support** for complex prompts
+  - **XDG Base Directory** support for clean home directory layout
   - 128K context window for all models
 
 - 🚀 Advanced Features
@@ -154,6 +156,15 @@ deepseek --multiline --multiline-submit shift-enter
 # Combine options with multiline
 deepseek --multiline --prefix --temp 0.0
 
+# Read query from a file
+deepseek --read prompt.txt
+
+# Pipe query from stdin
+echo "What is the time complexity of quicksort?" | deepseek --read -
+
+# Combine piped input with a prefix query and a system message
+git diff HEAD | deepseek --read - -q "Review this diff:" -S "You are a code reviewer."
+
 # Combine options
 deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r -S "You are an expert Python developer."
 
@@ -168,6 +179,7 @@ Available options (apply to both inline and interactive modes unless noted):
 
 **Core**
 - `-q, --query TEXT`: Run in inline mode with the given query
+- `--read FILE`: Read query text from FILE, or `-` to read from stdin (pipe). When combined with `-q` the file/pipe content is appended after the query text.
 - `-m, --model MODEL`: Model to use (`deepseek-chat`, `deepseek-coder`, `deepseek-reasoner`)
 - `-r, --raw`: Output raw response without token usage information (inline only)
 - `-S, --system TEXT`: Set the system message (default: `"You are a helpful assistant."`)
@@ -287,6 +299,36 @@ Function Calling:
 - Optimized for code generation and analysis
 
 ### Feature Details
+
+#### Pipe and File Input (`--read`)
+
+Feed query content from a file or stdin pipe instead of (or in addition to) `-q`:
+
+```bash
+# Read the entire query from a file
+deepseek --read prompt.txt
+
+# Pipe from another command (use '-' as the filename)
+echo "Explain this error:" | deepseek --read -
+cat error.log | deepseek --read -
+
+# Combine with -q — the -q text comes first, then the file/pipe content
+git diff HEAD | deepseek --read - -q "Review this diff:"
+cat report.md  | deepseek --read - -q "Summarise in one paragraph:"
+```
+
+When `--read -` is used but stdin is a terminal (not a pipe), the CLI exits with a clear error message.
+
+#### XDG Base Directory Support
+
+On fresh installations (no existing `~/.deepseek-cli` directory) the CLI follows the [XDG Base Directory specification](https://wiki.archlinux.org/title/XDG_Base_Directory):
+
+| Data | Default path | Override |
+|---|---|---|
+| `settings.json` | `~/.config/deepseek-cli/` | `$XDG_CONFIG_HOME/deepseek-cli/` |
+| `chat_history.json` | `~/.local/share/deepseek-cli/` | `$XDG_DATA_HOME/deepseek-cli/` |
+
+**Existing users** who already have a `~/.deepseek-cli` directory are unaffected — that directory continues to be used automatically. No data migration is needed.
 
 #### Fill-in-the-Middle (FIM)
 Use XML-style tags to define the gap:

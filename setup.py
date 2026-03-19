@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deepseek-cli",
-    version="0.4.5",
+    version="0.5.0",
     author="PierrunoYT",
     author_email="pierrebruno@hotmail.ch",
     description="A powerful CLI for interacting with DeepSeek's AI models",
@@ -36,9 +36,9 @@ setup(
         "pydantic>=2.0.0",
         "setuptools>=42.0.0",
         "rich>=14.0.0",
-        "pyfiglet>=1.0.3"
+        "pyfiglet>=1.0.3",
     ],
-        entry_points={
+    entry_points={
         "console_scripts": [
             "deepseek=cli.deepseek_cli:main",
         ],
