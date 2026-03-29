@@ -488,6 +488,11 @@ def _read_input(source: str) -> str:
     try:
         with open(source, "r", encoding="utf-8") as fh:
             return fh.read()
+    except UnicodeDecodeError as exc:
+        console.print(
+            f"[red]Error: '{source}' could not be decoded as UTF-8: {exc}[/red]"
+        )
+        sys.exit(1)
     except OSError as exc:
         console.print(f"[red]Error reading '{source}': {exc}[/red]")
         sys.exit(1)
