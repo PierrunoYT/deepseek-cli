@@ -498,10 +498,15 @@ def main() -> None:
 
     # Resolve the final query text, honouring --read / pipe input.
     query: Optional[str] = args.query
+    inline_mode: bool = query is not None
+
     if args.read is not None:
-        read_text = _read_input(args.read).strip()
-        if query:
-            query = query + "\n" + read_text
+        read_text = _read_input(args.read)
+        inline_mode = True
+        if query is not None:
+            # Minimal normalization: ensure exactly one newline at the join point
+            # without touching the read content itself.
+            query = query.rstrip("\n") + "\n" + read_text
         else:
             query = read_text
 
@@ -514,13 +519,10 @@ def main() -> None:
     # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
     cli._apply_cli_args(args)
 
-    # Check if running in inline mode
-    if query:
-        # Run in inline mode
-        response = cli.run_inline_query(query, args.model, args.raw, args.system)
+    if inline_mode:
+        response = cli.run_inline_query(query or "", args.model, args.raw, args.system)
         print(response)
     else:
-        # Run in interactive mode
         cli.run(args.system)
 
 
