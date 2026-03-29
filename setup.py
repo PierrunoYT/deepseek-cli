@@ -37,6 +37,7 @@ setup(
         "setuptools>=42.0.0",
         "rich>=14.0.0",
         "pyfiglet>=1.0.3",
+        "prompt_toolkit>=3.0.0",
     ],
     entry_points={
         "console_scripts": [
