@@ -33,8 +33,18 @@ def _resolve_dirs() -> tuple:
         (config_dir, data_dir) as Path objects.
     """
     legacy = Path.home() / ".deepseek-cli"
-    if legacy.exists():
+    if legacy.is_dir():
         return legacy, legacy
+    if legacy.exists():
+        # Path exists but is not a directory (e.g. a plain file); using it
+        # would cause mkdir to fail at startup, so fall back to XDG paths.
+        import warnings
+        warnings.warn(
+            f"{legacy} exists but is not a directory; "
+            "falling back to XDG Base Directory paths.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     config_dir = _xdg_config_home() / "deepseek-cli"
     data_dir = _xdg_data_home() / "deepseek-cli"
