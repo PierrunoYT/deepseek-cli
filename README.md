@@ -8,7 +8,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 
 - 🤖 Multiple Model Support
   - DeepSeek-V3.2 (deepseek-chat) - Non-thinking Mode
-  - DeepSeek-V3.2 (deepseek-reasoner) - Thinking Mode with Chain of Thought
+  - DeepSeek-R1 (deepseek-reasoner) - Thinking Mode with Chain of Thought
   - DeepSeek-V2.5 Coder (deepseek-coder)
 
 - 🔄 Advanced Conversation Features
@@ -32,7 +32,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 - 🛠️ Advanced Controls
   - Temperature control with presets
   - JSON output mode
-  - Streaming responses (enabled by default)
+  - Streaming responses (disabled by default; enable with `-s` / `--stream`)
   - Function calling (up to 128 functions)
   - Stop sequences
   - Top-p sampling
@@ -229,7 +229,7 @@ Basic Commands:
 - `/clear` - Clear conversation history
 - `/history` - Display conversation history
 - `/about` - Show API information
-- `/balance` - Check account balance
+- `/balance` - Show instructions for checking your account balance on the DeepSeek platform
 - `/multiline` - Show multiline mode information (enable with --multiline flag)
 
 Model Settings:
@@ -246,7 +246,7 @@ Beta Features:
 
 Output Control:
 - `/json` - Toggle JSON output mode
-- `/stream` - Toggle streaming mode (streaming is enabled by default)
+- `/stream` - Toggle streaming mode (streaming is disabled by default)
 - `/stop X` - Add stop sequence
 - `/clearstop` - Clear stop sequences
 
@@ -273,8 +273,8 @@ Function Calling:
   - Role-playing capabilities
   - Agent capability optimizations (Code Agent, Search Agent)
 
-#### DeepSeek-V3.2 (deepseek-reasoner)
-- **Version**: DeepSeek-V3.2 (Thinking Mode) - Updated December 2025
+#### DeepSeek-R1 (deepseek-reasoner)
+- **Version**: DeepSeek-R1 (Thinking Mode)
 - **Context Length**: 128K tokens (128,000 tokens)
 - **Output Length**: Default 32K, Maximum 64K tokens
 - **Chain of Thought**: Displays reasoning process before final answer
@@ -289,6 +289,9 @@ Function Calling:
 - Enhanced agent capabilities with benchmark improvements
 
 #### DeepSeek-V2.5 Coder (deepseek-coder)
+
+> ⚠️ **Note:** `deepseek-coder` may be deprecated and could redirect to `deepseek-chat`. Prefer `deepseek-chat` for new projects.
+
 - **Context Length**: 128K tokens
 - **Output Length**: Default 4K, Maximum 8K tokens
 - **Supports all features**:
@@ -470,3 +473,7 @@ For support, please open an issue on the [GitHub repository](https://github.com/
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Changelog
+
+There is no changelog for this project. A `CHANGELOG.md` was started but removed partway through development, so any attempt to reconstruct one now would be incomplete and inaccurate. Refer to the [commit history](https://github.com/PierrunoYT/deepseek-cli/commits/main) for a record of changes.

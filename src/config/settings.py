@@ -70,12 +70,12 @@ MODEL_CONFIGS = {
     },
     "deepseek-reasoner": {
         "name": "deepseek-reasoner",
-        "version": "DeepSeek-V3.2",
+        "version": "DeepSeek-R1",
         "mode": "Thinking Mode",
         "context_length": 128000,  # 128K context
         "max_tokens": 64000,  # Default 32K, Maximum 64K
         "default_max_tokens": 32000,
-        "description": "DeepSeek-V3.2 Reasoning model (Thinking Mode) with 128K context",
+        "description": "DeepSeek-R1 Reasoning model (Thinking Mode) with 128K context",
         "supports_json": True,
         "supports_function_calling": False,  # Not supported, falls back to deepseek-chat if tools provided
         "supports_prefix_completion": True,
