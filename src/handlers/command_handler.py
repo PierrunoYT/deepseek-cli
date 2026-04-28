@@ -1,6 +1,8 @@
 """Command handler for DeepSeek CLI"""
 
 import json
+import os
+import shlex
 from typing import Optional, Dict, Any, Tuple
 
 # Simplified import handling with clear fallback chain
@@ -8,17 +10,25 @@ try:
     # When installed via pip/pipx (package_dir={"": "src"})
     from api.client import APIClient
     from handlers.chat_handler import ChatHandler
+    from handlers.file_handler import FileHandler, pick_files
     from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 except ImportError:
     # When running from source (development mode)
     from src.api.client import APIClient
     from src.handlers.chat_handler import ChatHandler
+    from src.handlers.file_handler import FileHandler, pick_files
     from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 
 class CommandHandler:
-    def __init__(self, api_client: APIClient, chat_handler: ChatHandler) -> None:
+    def __init__(
+        self,
+        api_client: APIClient,
+        chat_handler: ChatHandler,
+        file_handler: Optional[FileHandler] = None,
+    ) -> None:
         self.api_client = api_client
         self.chat_handler = chat_handler
+        self.file_handler = file_handler if file_handler is not None else FileHandler()
 
     def handle_command(self, command: str) -> Tuple[Optional[bool], Optional[str]]:
         """Handle CLI commands and return (should_continue, message)
@@ -188,6 +198,54 @@ class CommandHandler:
                 "Please visit https://platform.deepseek.com to view your balance."
             )
 
+        elif command_lower == '/files':
+            files = self.file_handler.list_attachments()
+            if not files:
+                return True, "No files attached. Use /file <path>, /file <glob>, or /pick to attach."
+            lines = ["Attached files (will be sent with next message):"]
+            for i, f in enumerate(files):
+                size = int(f.get("size", 0))
+                lines.append(f"  [{i}] {f['path']}  ({size} bytes)")
+            total = self.file_handler.total_size()
+            lines.append(f"Total: {len(files)} file(s), {total} bytes")
+            return True, "\n".join(lines)
+
+        elif command_lower == '/file' or command_lower.startswith('/file '):
+            arg = command_raw[5:].strip() if len(command_raw) > 5 else ""
+            if not arg:
+                return True, (
+                    "Usage: /file <path-or-glob> [more paths...]\n"
+                    "  Examples:\n"
+                    "    /file src/main.py\n"
+                    "    /file src/*.py\n"
+                    "    /file ~/notes/todo.md README.md\n"
+                    "  Tip: use /pick for an interactive picker with tab completion."
+                )
+            try:
+                tokens = shlex.split(arg, posix=(os.name != "nt"))
+            except ValueError:
+                tokens = arg.split()
+            return True, self._attach_and_summarize(tokens)
+
+        elif command_lower == '/pick':
+            tokens = pick_files()
+            if not tokens:
+                return True, "Picker cancelled. No files attached."
+            return True, self._attach_and_summarize(tokens)
+
+        elif command_lower == '/dropfile' or command_lower.startswith('/dropfile '):
+            arg = command_raw[9:].strip() if len(command_raw) > 9 else ""
+            if not arg:
+                return True, "Usage: /dropfile <index-or-path>  (see /files for indices)"
+            if self.file_handler.remove(arg):
+                return True, f"Removed attachment: {arg}"
+            return True, f"No attachment matching: {arg}"
+
+        elif command_lower == '/clearfiles':
+            count = len(self.file_handler.list_attachments())
+            self.file_handler.clear()
+            return True, f"Cleared {count} attached file(s)"
+
         elif command_lower == '/help':
             return True, self.get_help_message()
 
@@ -195,6 +253,37 @@ class CommandHandler:
             return True, self.get_about_message()
 
         return None, None
+
+    def _attach_and_summarize(self, patterns: list) -> str:
+        """Run FileHandler.attach() over each pattern and build a status report."""
+        if not patterns:
+            return "No paths supplied."
+        attached_all: list = []
+        errors_all: list = []
+        for pattern in patterns:
+            attached, errors = self.file_handler.attach(pattern)
+            attached_all.extend(attached)
+            errors_all.extend(errors)
+
+        lines = []
+        if attached_all:
+            lines.append(f"Attached {len(attached_all)} file(s):")
+            for p in attached_all:
+                lines.append(f"  + {p}")
+        if errors_all:
+            if lines:
+                lines.append("")
+            lines.append("Issues:")
+            for e in errors_all:
+                lines.append(f"  ! {e}")
+        if not lines:
+            lines.append("No files attached.")
+        total = self.file_handler.total_size()
+        count = len(self.file_handler.list_attachments())
+        lines.append("")
+        lines.append(f"Currently attached: {count} file(s), {total} bytes "
+                     f"(use /files to list, /clearfiles to clear).")
+        return "\n".join(lines)
 
     def get_help_message(self) -> str:
         """Get help message with all available commands"""
@@ -221,6 +310,11 @@ class CommandHandler:
   /system X    - Set a custom system message
   /clear       - Clear conversation history
   /history     - Display conversation history
+  /file P...   - Attach file(s) for the next message (paths/globs, e.g. src/*.py)
+  /pick        - Open an interactive file picker (tab completion, multi-select)
+  /files       - List currently attached files
+  /dropfile X  - Remove an attached file by index (see /files) or path
+  /clearfiles  - Clear all attached files
   /balance     - Show account balance instructions
   /about       - Show API information and contact details
   /help        - Show this help message

@@ -19,6 +19,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - Context caching for better performance and cost savings
   - Inline mode for quick queries
   - **Pipe / file input** — feed queries from stdin or a file with `--read`
+  - **File attachments for analysis** — attach one or more files (with glob support and an interactive picker) so the model can analyse them, mirroring the DeepSeek app's file-upload feature
   - **Multiline input support** for complex prompts
   - **XDG Base Directory** support for clean home directory layout
   - 128K context window for all models
@@ -180,6 +181,7 @@ Available options (apply to both inline and interactive modes unless noted):
 **Core**
 - `-q, --query TEXT`: Run in inline mode with the given query
 - `--read FILE`: Read query text from FILE, or `-` to read from stdin (pipe). When combined with `-q` the file/pipe content is appended after the query text.
+- `--file PATH`: Attach a file (or glob pattern) for analysis; the file's text is folded into the next user message. Repeatable: `--file a.py --file 'src/*.py'`. Inside the REPL use `/file`, `/pick`, `/files`, `/clearfiles` for the same feature.
 - `-m, --model MODEL`: Model to use (`deepseek-chat`, `deepseek-coder`, `deepseek-reasoner`)
 - `-r, --raw`: Output raw response without token usage information (inline only)
 - `-S, --system TEXT`: Set the system message (default: `"You are a helpful assistant."`)
@@ -253,6 +255,15 @@ Output Control:
 Function Calling:
 - `/function {}` - Add function definition (JSON format)
 - `/clearfuncs` - Clear registered functions
+
+File Attachments (analyse local files):
+- `/file PATH...` - Attach one or more files for the next message. Accepts literal paths, `~`-paths, and glob patterns (e.g. `/file src/*.py`)
+- `/pick` - Interactive file picker with tab completion (multi-select, space-separated)
+- `/files` - List currently attached files
+- `/dropfile X` - Remove an attached file by index (see `/files`) or by absolute path
+- `/clearfiles` - Clear all attached files
+
+Attached file contents are folded into the next outgoing user message and then automatically cleared, matching the DeepSeek app's file-upload UX. Limits: 1 MiB per file, 4 MiB total, up to 20 files; binary files are rejected.
 
 ### Model-Specific Features
 

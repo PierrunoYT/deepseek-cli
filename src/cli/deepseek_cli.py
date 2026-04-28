@@ -99,12 +99,14 @@ try:
     from handlers.chat_handler import ChatHandler
     from handlers.command_handler import CommandHandler
     from handlers.error_handler import ErrorHandler
+    from handlers.file_handler import FileHandler
 except ImportError:
     # When running from source (development mode)
     from src.api.client import APIClient
     from src.handlers.chat_handler import ChatHandler
     from src.handlers.command_handler import CommandHandler
     from src.handlers.error_handler import ErrorHandler
+    from src.handlers.file_handler import FileHandler
 
 
 class DeepSeekCLI:
@@ -117,7 +119,10 @@ class DeepSeekCLI:
     ) -> None:
         self.api_client = APIClient()
         self.chat_handler = ChatHandler(stream=stream)
-        self.command_handler = CommandHandler(self.api_client, self.chat_handler)
+        self.file_handler = FileHandler()
+        self.command_handler = CommandHandler(
+            self.api_client, self.chat_handler, self.file_handler
+        )
         self.error_handler = ErrorHandler()
         self.multiline = multiline
         self.multiline_submit = multiline_submit
@@ -143,6 +148,19 @@ class DeepSeekCLI:
     def get_completion(self, user_input: str, raw: bool = False) -> Optional[str]:
         """Get completion from the API with retry logic"""
         try:
+            # If files are attached, fold their contents into the user message
+            # and clear the attachment list (one-shot, matches DeepSeek app UX).
+            if self.file_handler.has_attachments():
+                attached_paths = [
+                    f["path"] for f in self.file_handler.list_attachments()
+                ]
+                console.print(
+                    f"[cyan]Including {len(attached_paths)} attached file(s) "
+                    f"with this message.[/cyan]"
+                )
+                user_input = self.file_handler.format_for_message(user_input)
+                self.file_handler.clear()
+
             # Add user message to history
             self.chat_handler.add_message("user", user_input)
 
@@ -262,6 +280,13 @@ class DeepSeekCLI:
         if getattr(args, "stop", None):
             for seq in args.stop:
                 self.chat_handler.add_stop_sequence(seq)
+        if getattr(args, "files", None):
+            for pattern in args.files:
+                attached, errors = self.file_handler.attach(pattern)
+                for p in attached:
+                    console.print(f"[green]+ attached:[/green] {p}")
+                for e in errors:
+                    console.print(f"[yellow]! {e}[/yellow]")
 
     def run_inline_query(
         self,
@@ -348,6 +373,20 @@ def parse_arguments() -> argparse.Namespace:
             "Read query text from FILE, or '-' to read from stdin (pipe). "
             "When combined with -q/--query the file/pipe content is appended "
             "after the query text separated by a newline."
+        ),
+    )
+    parser.add_argument(
+        "--file",
+        type=str,
+        action="append",
+        default=None,
+        metavar="PATH",
+        dest="files",
+        help=(
+            "Attach a file (or glob pattern) for analysis; the file's text "
+            "is folded into the next user message. Repeatable: --file a.py "
+            "--file 'src/*.py'. Inside the REPL use /file, /pick, /files, "
+            "/clearfiles for the same feature."
         ),
     )
     parser.add_argument(
