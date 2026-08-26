@@ -40,7 +40,7 @@ dependencies = [
 Homepage = "https://github.com/PierrunoYT/deepseek-cli"
 
 [project.scripts]
-deepseek = "cli.deepseek_cli:main"
+deepseek = "deepseek_cli.cli.deepseek_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

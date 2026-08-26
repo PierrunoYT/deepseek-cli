@@ -5,19 +5,10 @@ import os
 import shlex
 from typing import Optional, Dict, Any, Tuple
 
-# Simplified import handling with clear fallback chain
-try:
-    # When installed via pip/pipx (package_dir={"": "src"})
-    from api.client import APIClient
-    from handlers.chat_handler import ChatHandler
-    from handlers.file_handler import FileHandler, pick_files
-    from config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
-except ImportError:
-    # When running from source (development mode)
-    from src.api.client import APIClient
-    from src.handlers.chat_handler import ChatHandler
-    from src.handlers.file_handler import FileHandler, pick_files
-    from src.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+from deepseek_cli.api.client import APIClient
+from deepseek_cli.handlers.chat_handler import ChatHandler
+from deepseek_cli.handlers.file_handler import FileHandler, pick_files
+from deepseek_cli.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
 
 class CommandHandler:
     def __init__(
@@ -177,8 +168,12 @@ class CommandHandler:
                 return True, "No conversation history"
             lines = []
             for i, msg in enumerate(self.chat_handler.messages):
-                role = msg.get("role", "unknown").capitalize()
-                content = msg.get("content", "")
+                role = str(msg.get("role", "unknown")).capitalize()
+                # content may be absent or non-string on a hand-edited or
+                # corrupted history file; str() keeps /history from raising.
+                content = msg.get("content") or ""
+                if not isinstance(content, str):
+                    content = str(content)
                 # Truncate very long messages for readability
                 preview = content[:200] + ("..." if len(content) > 200 else "")
                 lines.append(f"  [{i}] {role}: {preview}")
@@ -256,12 +251,22 @@ class CommandHandler:
 
     def _attach_and_summarize(self, patterns: list) -> str:
         """Run FileHandler.attach() over each pattern and build a status report."""
+        # A leading --allow-sensitive opts in to attaching credential-shaped
+        # files, which are refused by default.
+        allow_sensitive = False
+        patterns = list(patterns)
+        if "--allow-sensitive" in patterns:
+            allow_sensitive = True
+            patterns = [p for p in patterns if p != "--allow-sensitive"]
+
         if not patterns:
             return "No paths supplied."
         attached_all: list = []
         errors_all: list = []
         for pattern in patterns:
-            attached, errors = self.file_handler.attach(pattern)
+            attached, errors = self.file_handler.attach(
+                pattern, allow_sensitive=allow_sensitive
+            )
             attached_all.extend(attached)
             errors_all.extend(errors)
 
@@ -311,6 +316,8 @@ class CommandHandler:
   /clear       - Clear conversation history
   /history     - Display conversation history
   /file P...   - Attach file(s) for the next message (paths/globs, e.g. src/*.py)
+                 Secret-looking files (.env, ~/.ssh/id_rsa, *.pem) are refused;
+                 pass --allow-sensitive to override.
   /pick        - Open an interactive file picker (tab completion, multi-select)
   /files       - List currently attached files
   /dropfile X  - Remove an attached file by index (see /files) or path

@@ -9,33 +9,17 @@ from rich import box
 from rich.panel import Panel
 
 
-# Simplified import handling with clear fallback chain
-try:
-    # When installed via pip/pipx (package_dir={"": "src"})
-    from config.settings import (
-        MODEL_CONFIGS,
-        TEMPERATURE_PRESETS,
-        DEFAULT_MAX_TOKENS,
-        DEFAULT_TEMPERATURE,
-        MAX_FUNCTIONS,
-        MAX_STOP_SEQUENCES,
-        MAX_HISTORY_LENGTH
-    )
-    from utils.version_checker import check_version
-    from utils.persistence import PersistenceManager
-except ImportError:
-    # When running from source (development mode)
-    from src.config.settings import (
-        MODEL_CONFIGS,
-        TEMPERATURE_PRESETS,
-        DEFAULT_MAX_TOKENS,
-        DEFAULT_TEMPERATURE,
-        MAX_FUNCTIONS,
-        MAX_STOP_SEQUENCES,
-        MAX_HISTORY_LENGTH
-    )
-    from src.utils.version_checker import check_version
-    from src.utils.persistence import PersistenceManager
+from deepseek_cli.config.settings import (
+    MODEL_CONFIGS,
+    TEMPERATURE_PRESETS,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_TEMPERATURE,
+    MAX_FUNCTIONS,
+    MAX_STOP_SEQUENCES,
+    MAX_HISTORY_LENGTH,
+)
+from deepseek_cli.utils.version_checker import check_version
+from deepseek_cli.utils.persistence import PersistenceManager
 
 class ChatHandler:
     def __init__(self, *, stream: bool = False) -> None:
@@ -67,9 +51,10 @@ class ChatHandler:
         self._load_persisted_data()
 
     def _check_version_cached(self) -> None:
-        """Check for new version and cache the result"""
+        """Check for a new version, hitting PyPI at most once per TTL window."""
         try:
-            update_available, current, latest = check_version()
+            cache_file = self.persistence.get_data_dir() / "version_check.json"
+            update_available, current, latest = check_version(cache_file=cache_file)
             if update_available:
                 self.console.print(f"\n[yellow]New version available: {latest} (current: {current})[/yellow]")
                 self.console.print("[yellow]Update with: pip install --upgrade deepseek-cli[/yellow]\n")
@@ -240,10 +225,15 @@ class ChatHandler:
         """Handle API response and extract content"""
         try:
             if not self.stream:
-                if hasattr(response, 'usage'):
-                    self.display_token_info(response.usage.model_dump())
+                # hasattr() is True even when usage is None, which used to
+                # raise AttributeError and discard an otherwise good response.
+                usage = getattr(response, 'usage', None)
+                if usage is not None and not self.raw_mode:
+                    self.display_token_info(usage.model_dump())
 
                 # Get the message from the response
+                if not getattr(response, 'choices', None):
+                    return None
                 choice = response.choices[0]
                 if not hasattr(choice, 'message'):
                     return None
@@ -274,7 +264,15 @@ class ChatHandler:
                                 "name": tool_call.function.name,
                                 "arguments": tool_call.function.arguments
                             })
-                    return json.dumps(tool_calls, indent=2)
+                    rendered = json.dumps(tool_calls, indent=2)
+                    # Record the turn so the conversation does not desync from
+                    # what the model actually produced.
+                    self.messages.append({
+                        "role": "assistant",
+                        "content": content or "",
+                        "tool_calls": tool_calls,
+                    })
+                    return rendered
 
                 # Handle regular message content
                 if content is not None:
@@ -302,13 +300,24 @@ class ChatHandler:
         """Handle streaming response"""
         full_response: str = ""
         reasoning_content: str = ""
+        usage: Any = None
         chunk_count = 0
         try:
             with Live("", console=self.console, refresh_per_second=8) as live:
                 for chunk in response:
+                    # The final chunk emitted when stream_options.include_usage
+                    # is set carries the usage payload and an EMPTY choices
+                    # list. Indexing it unconditionally raised IndexError and
+                    # aborted the loop before the reply was ever recorded.
+                    chunk_usage = getattr(chunk, 'usage', None)
+                    if chunk_usage is not None:
+                        usage = chunk_usage
+                    if not getattr(chunk, 'choices', None):
+                        continue
+
                     if hasattr(chunk.choices[0], 'delta'):
                         delta = chunk.choices[0].delta
-                        
+
                         # Handle reasoning content for deepseek-reasoner
                         if hasattr(delta, 'reasoning_content') and delta.reasoning_content is not None:
                             reasoning_content += delta.reasoning_content
@@ -351,15 +360,20 @@ class ChatHandler:
                     )
                     live.update(final_bubble)
 
+            if usage is not None and not self.raw_mode:
+                self.display_token_info(usage.model_dump())
+            return full_response
+        except Exception as e:
+            self.console.print(f"\n[red]Error in stream response: {str(e)}[/red]")
+            return full_response
+        finally:
+            # Record whatever was received even if the stream was interrupted
+            # part-way, so history always matches what the user was shown.
             if full_response:
                 self.messages.append({
                     "role": "assistant",
                     "content": full_response
                 })
-            return full_response
-        except Exception as e:
-            self.console.print(f"\n[red]Error in stream response: {str(e)}[/red]")
-            return full_response
 
     def display_token_info(self, usage: Dict[str, int]) -> None:
         """Display token usage information"""
@@ -401,49 +415,81 @@ class ChatHandler:
     
     def _load_persisted_data(self) -> None:
         """Load persisted history and settings"""
-        # Load history
+        # Load history, keeping only well-formed messages. Anything else on
+        # disk would surface later as a TypeError in /history or a 400 from
+        # the API.
         loaded_messages = self.persistence.load_history()
         if loaded_messages:
-            self.messages = loaded_messages
-        
+            self.messages = [
+                m for m in loaded_messages
+                if isinstance(m, dict)
+                and isinstance(m.get("role"), str)
+                and isinstance(m.get("content"), str)
+            ]
+
+
         # Load settings
         loaded_settings = self.persistence.load_settings()
         if loaded_settings:
             self._apply_loaded_settings(loaded_settings)
     
+    @staticmethod
+    def _coerce_number(value: Any, low: float, high: float) -> Optional[float]:
+        """Return *value* as a float inside [low, high], or None if it isn't.
+
+        bool is rejected explicitly because it is a subclass of int and would
+        otherwise silently become 0.0/1.0.
+        """
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        number = float(value)
+        if number != number:  # NaN never compares inside a range
+            return None
+        return number if low <= number <= high else None
+
     def _apply_loaded_settings(self, settings: Dict[str, Any]) -> None:
-        """Apply loaded settings to current state"""
-        if "model" in settings and settings["model"] in MODEL_CONFIGS:
+        """Apply loaded settings to current state.
+
+        The settings file is on-disk state that another local process (or a
+        corrupted write) can influence, so every field is validated to the
+        same type/range the interactive setters enforce. Invalid entries are
+        dropped rather than propagated into an API request.
+        """
+        if not isinstance(settings, dict):
+            return
+
+        if settings.get("model") in MODEL_CONFIGS:
             self.model = settings["model"]
             self.max_tokens = MODEL_CONFIGS[self.model].get("default_max_tokens", DEFAULT_MAX_TOKENS)
-        
-        if "temperature" in settings:
-            self.temperature = settings["temperature"]
-        
-        if "frequency_penalty" in settings:
-            self.frequency_penalty = settings["frequency_penalty"]
-        
-        if "presence_penalty" in settings:
-            self.presence_penalty = settings["presence_penalty"]
-        
-        if "top_p" in settings:
-            self.top_p = settings["top_p"]
-        
-        if "json_mode" in settings:
-            self.json_mode = settings["json_mode"]
-        
-        if "prefix_mode" in settings:
-            self.prefix_mode = settings["prefix_mode"]
-        
-        if "fim_mode" in settings:
-            self.fim_mode = settings["fim_mode"]
-        
-        if "stop_sequences" in settings:
-            self.stop_sequences = settings["stop_sequences"]
-        
-        if "functions" in settings:
-            self.functions = settings["functions"]
-    
+
+        for key, low, high in (
+            ("temperature", 0.0, 2.0),
+            ("frequency_penalty", -2.0, 2.0),
+            ("presence_penalty", -2.0, 2.0),
+            ("top_p", 0.0, 1.0),
+        ):
+            if key in settings:
+                number = self._coerce_number(settings[key], low, high)
+                if number is not None:
+                    setattr(self, key, number)
+
+        for key in ("json_mode", "prefix_mode", "fim_mode"):
+            if isinstance(settings.get(key), bool):
+                setattr(self, key, settings[key])
+
+        stop_sequences = settings.get("stop_sequences")
+        if isinstance(stop_sequences, list):
+            self.stop_sequences = [
+                s for s in stop_sequences if isinstance(s, str)
+            ][:MAX_STOP_SEQUENCES]
+
+        functions = settings.get("functions")
+        if isinstance(functions, list):
+            self.functions = [
+                f for f in functions if isinstance(f, dict)
+            ][:MAX_FUNCTIONS]
+
+
     def get_current_settings(self) -> Dict[str, Any]:
         """Get current settings as a dictionary"""
         return {

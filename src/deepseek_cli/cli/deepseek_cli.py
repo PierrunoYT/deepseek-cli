@@ -12,9 +12,17 @@ from rich import box
 from rich.align import Align
 from rich.markdown import Markdown
 from rich.text import Text
-from pyfiglet import Figlet
+
+try:
+    from pyfiglet import Figlet
+except ImportError:
+    # Only used by the optional 'fancy' banner; the CLI must import and run
+    # without it (the test suite imports this module directly).
+    Figlet = None
 
 console = Console()
+
+DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
 
 try:
     from prompt_toolkit import PromptSession
@@ -92,21 +100,12 @@ def multiline_input(prompt: str, submit_mode: str = "shift-enter") -> str:
     return "\n".join(lines)
 
 
-# Simplified import handling with clear fallback chain
-try:
-    # When installed via pip/pipx (package_dir={"": "src"})
-    from api.client import APIClient
-    from handlers.chat_handler import ChatHandler
-    from handlers.command_handler import CommandHandler
-    from handlers.error_handler import ErrorHandler
-    from handlers.file_handler import FileHandler
-except ImportError:
-    # When running from source (development mode)
-    from src.api.client import APIClient
-    from src.handlers.chat_handler import ChatHandler
-    from src.handlers.command_handler import CommandHandler
-    from src.handlers.error_handler import ErrorHandler
-    from src.handlers.file_handler import FileHandler
+from deepseek_cli.api.client import APIClient
+from deepseek_cli.handlers.chat_handler import ChatHandler
+from deepseek_cli.handlers.command_handler import CommandHandler
+from deepseek_cli.handlers.error_handler import ErrorHandler
+from deepseek_cli.handlers.file_handler import FileHandler
+from deepseek_cli.utils.exceptions import DeepSeekError
 
 
 class DeepSeekCLI:
@@ -127,10 +126,22 @@ class DeepSeekCLI:
         self.multiline = multiline
         self.multiline_submit = multiline_submit
 
-        # Register cleanup handlers
+        # Register cleanup handlers. SIGINT is deliberately left at Python's
+        # default (raise KeyboardInterrupt) so Ctrl+C cancels the current
+        # input line instead of tearing down the whole session; the REPL loop
+        # handles it. Overriding it also made the loop's KeyboardInterrupt
+        # handler unreachable.
         atexit.register(self._cleanup)
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        try:
+            signal.signal(signal.SIGTERM, self._signal_handler)
+        except (ValueError, AttributeError, OSError):
+            # Not the main thread, or SIGTERM unavailable on this platform.
+            pass
+
+    def _has_system_message(self) -> bool:
+        """True when the loaded conversation already starts with a system message."""
+        messages = self.chat_handler.messages
+        return bool(messages) and messages[0].get("role") == "system"
 
     def _cleanup(self) -> None:
         """Cleanup function called on exit"""
@@ -174,12 +185,14 @@ class DeepSeekCLI:
                 response = self.api_client.create_chat_completion(**kwargs)
                 return self.chat_handler.handle_response(response)
 
-            result = self.error_handler.retry_with_backoff(
-                make_request, self.api_client
-            )
-
-            self.chat_handler.raw_mode = original_raw_mode
-            return result
+            try:
+                return self.error_handler.retry_with_backoff(
+                    make_request, self.api_client
+                )
+            finally:
+                # Restore unconditionally; an exception here used to leave
+                # raw_mode stuck for the rest of the session.
+                self.chat_handler.raw_mode = original_raw_mode
 
         except (KeyError, ValueError, TypeError) as e:
             console.print(f"[red]Error processing request: {str(e)}[/red]")
@@ -188,10 +201,19 @@ class DeepSeekCLI:
             console.print(f"[red]Unexpected error: {str(e)}[/red]")
             return None
 
-    def run(self, system_message: str = "You are a helpful assistant.") -> None:
-        """Run the CLI interface"""
-        # Set initial system message
-        self.chat_handler.set_system_message(system_message)
+    def run(self, system_message: Optional[str] = None) -> None:
+        """Run the CLI interface.
+
+        Args:
+            system_message: Explicit system message from --system. When None,
+                a system message persisted from a previous session (set via
+                /system) is preserved; previously it was silently overwritten
+                with the default on every start.
+        """
+        if system_message is not None:
+            self.chat_handler.set_system_message(system_message)
+        elif not self._has_system_message():
+            self.chat_handler.set_system_message(DEFAULT_SYSTEM_MESSAGE)
 
         self._print_welcome()
 
@@ -205,6 +227,9 @@ class DeepSeekCLI:
                 console.print(
                     "[cyan]Multiline mode enabled: Enter for newlines, empty line or Ctrl+D to submit[/cyan]\n"
                 )
+
+        # Consecutive Ctrl+C presses with no successful input in between.
+        interrupts = 0
 
         try:
             while True:
@@ -220,6 +245,9 @@ class DeepSeekCLI:
                             "[bold bright_magenta]> You[/bold bright_magenta]: ", end=""
                         )
                         user_input = input().strip()
+
+                    # A successful read resets the Ctrl+C exit counter.
+                    interrupts = 0
 
                     # Handle empty input (just pressing Enter)
                     if not user_input:
@@ -243,9 +271,23 @@ class DeepSeekCLI:
                     # Ctrl+D pressed - exit gracefully
                     console.print("\n[yellow]Exiting...[/yellow]")
                     break
+                except KeyboardInterrupt:
+                    # First Ctrl+C cancels the current line; a second one with
+                    # nothing entered in between exits. Cancelling the line is
+                    # the useful behaviour, and the two-strike rule guarantees
+                    # the loop still terminates when stdin can only interrupt.
+                    interrupts += 1
+                    if interrupts >= 2:
+                        console.print("\n[yellow]Exiting...[/yellow]")
+                        break
+                    console.print(
+                        "\n[yellow]Cancelled. Press Ctrl+C again, Ctrl+D, "
+                        "or type /quit to exit.[/yellow]"
+                    )
+                    continue
 
         except KeyboardInterrupt:
-            # Ctrl+C pressed - exit gracefully
+            # Interrupt outside the input/response cycle - exit gracefully
             console.print("\n[yellow]Exiting...[/yellow]")
         finally:
             # Ensure cleanup happens
@@ -281,8 +323,11 @@ class DeepSeekCLI:
             for seq in args.stop:
                 self.chat_handler.add_stop_sequence(seq)
         if getattr(args, "files", None):
+            allow_sensitive = getattr(args, "allow_sensitive", False)
             for pattern in args.files:
-                attached, errors = self.file_handler.attach(pattern)
+                attached, errors = self.file_handler.attach(
+                    pattern, allow_sensitive=allow_sensitive
+                )
                 for p in attached:
                     console.print(f"[green]+ attached:[/green] {p}")
                 for e in errors:
@@ -293,12 +338,15 @@ class DeepSeekCLI:
         query: str,
         model: Optional[str] = None,
         raw: bool = False,
-        system_message: str = "You are a helpful assistant.",
+        system_message: Optional[str] = None,
     ) -> str:
         """Run a single query and return the response"""
-        # Only set system message if no messages exist (don't override persisted system message)
-        if not self.chat_handler.messages:
+        # An explicit --system always wins; otherwise keep any persisted
+        # system message and only fall back to the default if there is none.
+        if system_message is not None:
             self.chat_handler.set_system_message(system_message)
+        elif not self._has_system_message():
+            self.chat_handler.set_system_message(DEFAULT_SYSTEM_MESSAGE)
 
         # Set model if specified
         if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
@@ -318,6 +366,10 @@ class DeepSeekCLI:
         Args:
             style: Banner style - 'simple' for minimal or 'fancy' for ASCII art
         """
+
+        if style != "simple" and Figlet is None:
+            # pyfiglet is optional; degrade to the simple banner.
+            style = "simple"
 
         if style == "simple":
             panel = Panel(
@@ -390,6 +442,17 @@ def parse_arguments() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--allow-sensitive",
+        action="store_true",
+        default=False,
+        dest="allow_sensitive",
+        help=(
+            "Permit --file to attach credential-shaped files (.env, "
+            "~/.ssh/id_rsa, *.pem, ~/.aws/credentials ...). These are refused "
+            "by default because their contents would be uploaded to the API."
+        ),
+    )
+    parser.add_argument(
         "-m",
         "--model",
         type=str,
@@ -406,8 +469,12 @@ def parse_arguments() -> argparse.Namespace:
         "-S",
         "--system",
         type=str,
-        default="You are a helpful assistant.",
-        help="Set the system message (default: 'You are a helpful assistant.')",
+        default=None,
+        help=(
+            "Set the system message. When omitted, a system message saved "
+            "from a previous session (via /system) is kept, otherwise "
+            f"'{DEFAULT_SYSTEM_MESSAGE}' is used."
+        ),
     )
 
     # Streaming
@@ -554,11 +621,16 @@ def main() -> None:
         else:
             query = read_text
 
-    cli = DeepSeekCLI(
-        stream=args.stream,
-        multiline=args.multiline,
-        multiline_submit=args.multiline_submit,
-    )
+    try:
+        cli = DeepSeekCLI(
+            stream=args.stream,
+            multiline=args.multiline,
+            multiline_submit=args.multiline_submit,
+        )
+    except DeepSeekError as exc:
+        # e.g. no API key and no interactive terminal to prompt on.
+        console.print(f"[red]Error: {exc}[/red]")
+        sys.exit(1)
 
     # Apply REPL-equivalent flags (temp, freq, pres, top_p, stop, json, beta, prefix, fim)
     cli._apply_cli_args(args)

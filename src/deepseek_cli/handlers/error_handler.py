@@ -1,19 +1,27 @@
 """Error handler for DeepSeek CLI"""
 
+import sys
 import time
 from typing import Optional, Dict, Any, Callable
 from openai import APIError, RateLimitError, AuthenticationError
 from rich.console import Console
 
-# Simplified import handling with clear fallback chain
-try:
-    # When installed via pip/pipx (package_dir={"": "src"})
-    from utils.exceptions import RateLimitExceeded
-    from config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
-except ImportError:
-    # When running from source (development mode)
-    from src.utils.exceptions import RateLimitExceeded
-    from src.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+from deepseek_cli.utils.exceptions import RateLimitExceeded, DeepSeekError
+from deepseek_cli.config.settings import DEFAULT_RETRY_DELAY, DEFAULT_MAX_RETRY_DELAY
+
+
+def _confirm(prompt: str) -> bool:
+    """Ask a yes/no question, returning False when there is no interactive stdin.
+
+    Without the TTY check a piped or redirected run (``deepseek --read -``)
+    hits EOF and raises an uncaught EOFError from inside the retry handler.
+    """
+    if not sys.stdin.isatty():
+        return False
+    try:
+        return input(prompt).strip().lower() in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        return False
 
 class ErrorHandler:
     def __init__(self, max_retries: int = 3) -> None:
@@ -79,6 +87,10 @@ class ErrorHandler:
                     retry_after = int(header_val)
                 except (ValueError, TypeError):
                     pass
+            # Retry-After is attacker-controllable (a hostile or MITM'd
+            # endpoint could send a huge value to hang the CLI, or a negative
+            # one to make time.sleep raise), so clamp it to a sane window.
+            retry_after = max(0, min(retry_after, self.max_retry_delay))
             self.console.print(f"\n[yellow]Rate limit exceeded. Retrying in {retry_after} seconds...[/yellow]")
             time.sleep(retry_after)
             return "retry"
@@ -88,11 +100,15 @@ class ErrorHandler:
             error_info = self.status_messages.get(401, {})
             self.console.print(f"\n[red]Error (401): {error_info.get('message', 'Authentication failed')}[/red]")
             self.console.print(f"[cyan]Solution: {error_info.get('solution', 'Check your API key')}[/cyan]")
-            if api_client:
-                new_key = input("\nWould you like to enter a new API key? (y/n): ")
-                if new_key.lower() == 'y':
-                    api_client.update_api_key(input("Please enter your new DeepSeek API key: "))
-                    return "retry"
+            if api_client and _confirm("\nWould you like to enter a new API key? (y/n): "):
+                try:
+                    # Reads the key via getpass so it is never echoed or kept
+                    # in the readline history buffer.
+                    api_client.prompt_for_new_api_key()
+                except DeepSeekError as key_error:
+                    self.console.print(f"[red]{key_error}[/red]")
+                    return None
+                return "retry"
             return None
 
         # Handle other known status codes
@@ -102,8 +118,7 @@ class ErrorHandler:
             self.console.print(f"[cyan]Solution: {error_info['solution']}[/cyan]")
 
             if status_code in [500, 503]:
-                retry = input("\nWould you like to retry the request? (y/n): ")
-                if retry.lower() == 'y':
+                if _confirm("\nWould you like to retry the request? (y/n): "):
                     return "retry"
         else:
             # Unknown / non-API errors — preserve as much detail as possible

@@ -48,6 +48,34 @@ BINARY_EXTENSIONS = {
     ".woff", ".woff2", ".ttf", ".otf",
 }
 
+# Files whose contents are almost never meant to leave the machine. Attaching
+# one uploads it verbatim to the API, so these require an explicit opt-in
+# rather than being swept up silently by a glob like ``**/*``.
+SENSITIVE_EXTENSIONS = {
+    ".pem", ".key", ".p12", ".pfx", ".jks", ".keystore", ".asc", ".gpg", ".kdbx",
+}
+
+SENSITIVE_NAMES = {
+    ".env", ".envrc", ".netrc", "_netrc", ".pgpass", ".htpasswd",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519", "identity",
+    "credentials", "shadow", ".git-credentials", ".npmrc", ".pypirc",
+}
+
+# Directories that only ever hold credentials/keys.
+SENSITIVE_DIRS = {".ssh", ".aws", ".gnupg", ".kube", ".docker"}
+
+
+def is_sensitive(abs_path: str) -> bool:
+    """Heuristically flag paths that typically hold credentials or private keys."""
+    p = Path(abs_path)
+    name = p.name.lower()
+    if name in SENSITIVE_NAMES or p.suffix.lower() in SENSITIVE_EXTENSIONS:
+        return True
+    # ``.env.production`` and friends.
+    if name.startswith(".env."):
+        return True
+    return any(part.lower() in SENSITIVE_DIRS for part in p.parts)
+
 
 class FileHandler:
     """Manages the list of files attached for the next user message."""
@@ -92,8 +120,15 @@ class FileHandler:
     # ------------------------------------------------------------------
     # Attaching
     # ------------------------------------------------------------------
-    def attach(self, path_pattern: str) -> Tuple[List[str], List[str]]:
+    def attach(
+        self, path_pattern: str, allow_sensitive: bool = False
+    ) -> Tuple[List[str], List[str]]:
         """Attach files matching *path_pattern* (literal path or glob).
+
+        Args:
+            path_pattern: A literal path, ``~``-path, or glob pattern.
+            allow_sensitive: Attach credential-shaped files (``.env``,
+                ``~/.ssh/id_rsa``, ``*.pem`` …) that are refused by default.
 
         Returns:
             ``(attached_paths, errors)`` — both lists may be empty.
@@ -131,6 +166,14 @@ class FileHandler:
             ext = Path(abs_path).suffix.lower()
             if ext in BINARY_EXTENSIONS:
                 errors.append(f"Binary file rejected: {abs_path}")
+                continue
+
+            if not allow_sensitive and is_sensitive(abs_path):
+                errors.append(
+                    f"Refused (looks like a secret; its contents would be "
+                    f"uploaded to the API): {abs_path}. "
+                    f"Use '/file --allow-sensitive <path>' to override."
+                )
                 continue
 
             try:

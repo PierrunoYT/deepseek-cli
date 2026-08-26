@@ -51,6 +51,36 @@ def _resolve_dirs() -> tuple:
     return config_dir, data_dir
 
 
+def _mkdir_private(path: Path) -> None:
+    """Create *path* (and parents) restricted to the owner where supported.
+
+    ``mode`` is ignored by mkdir on Windows and is masked by the process umask
+    on POSIX, so an explicit chmod follows for an existing or freshly created
+    directory. Permission systems that don't implement chmod (Windows) raise
+    nothing useful here, so failures are non-fatal.
+    """
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        os.chmod(path, 0o700)
+    except (OSError, NotImplementedError):
+        pass
+
+
+def _open_private(path: Path, mode: str):
+    """Open *path* for writing with owner-only permissions from the start.
+
+    The file is created via ``os.open`` with 0o600 so there is no window in
+    which the transcript exists world-readable; chmod afterwards also fixes
+    files created by earlier versions of the CLI.
+    """
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.chmod(path, 0o600)
+    except (OSError, NotImplementedError):
+        pass
+    return os.fdopen(fd, mode, encoding="utf-8")
+
+
 class PersistenceManager:
     """Handles saving and loading chat history and settings"""
 
@@ -69,10 +99,12 @@ class PersistenceManager:
         else:
             self.config_dir, self.data_dir = _resolve_dirs()
 
-        # Ensure directories exist
-        self.config_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure directories exist, owner-only. These hold the full transcript
+        # (including the text of any attached files), so they must not be
+        # readable by other local users.
+        _mkdir_private(self.config_dir)
         if self.data_dir != self.config_dir:
-            self.data_dir.mkdir(parents=True, exist_ok=True)
+            _mkdir_private(self.data_dir)
 
         self.history_file = self.data_dir / "chat_history.json"
         self.settings_file = self.config_dir / "settings.json"
@@ -93,7 +125,7 @@ class PersistenceManager:
                 "version": "1.0",
             }
 
-            with open(self.history_file, "w", encoding="utf-8") as f:
+            with _open_private(self.history_file, "w") as f:
                 json.dump(history_data, f, indent=2, ensure_ascii=False)
 
             return True
@@ -143,7 +175,7 @@ class PersistenceManager:
                 "version": "1.0",
             }
 
-            with open(self.settings_file, "w", encoding="utf-8") as f:
+            with _open_private(self.settings_file, "w") as f:
                 json.dump(settings_data, f, indent=2, ensure_ascii=False)
 
             return True

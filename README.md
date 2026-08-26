@@ -28,7 +28,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - Prefix Completion: Complete assistant messages from a given prefix (Stable)
   - Fill-in-the-Middle (FIM): Complete content between a prefix and suffix (Stable)
   - Context Caching: Automatic disk-based caching with up to 90% cost savings
-  - Anthropic API Compatibility: Use DeepSeek models with Anthropic API format
+  - Anthropic API Compatibility: the DeepSeek *platform* accepts the Anthropic API format, so tools like Claude Code can point at it ([details below](#anthropic-api-compatibility)). This is a property of the API, not a mode of this CLI.
 
 - 🛠️ Advanced Controls
   - Temperature control with presets
@@ -40,7 +40,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - Frequency and presence penalties
 
 - 📦 Package Management
-  - Automatic version checking
+  - Automatic version checking (cached for 24 hours, so startup is not blocked on a network call)
   - Update notifications
   - Easy installation and updates
   - Development mode support
@@ -62,6 +62,15 @@ git clone https://github.com/PierrunoYT/deepseek-cli.git
 cd deepseek-cli
 pip install -e .
 ```
+
+To run the test suite from a source checkout:
+
+```bash
+pip install pytest
+pytest
+```
+
+The package lives in `src/deepseek_cli/`; a root `conftest.py` puts `src/` on `sys.path` so the tests run without installing first.
 
 ### Updating the Package
 
@@ -95,6 +104,12 @@ set DEEPSEEK_API_KEY="your-api-key"
 ```
 
 To make it permanent, add it to your environment variables through System Settings.
+
+If the variable is not set, the CLI prompts for the key without echoing it, so it does not end up in your terminal scrollback or shell history. When there is no interactive terminal (a piped or scripted run), it exits with an error instead of blocking on a prompt — set `DEEPSEEK_API_KEY` for those.
+
+### Where your data is stored
+
+Conversation history and settings are written under `$XDG_DATA_HOME`/`$XDG_CONFIG_HOME` (or the legacy `~/.deepseek-cli` if it already exists). These files hold the full transcript, including the text of any attached files, and are created with owner-only permissions (`0600`, in a `0700` directory) on macOS and Linux. Use `/clear` to drop the stored history.
 
 ## Usage
 
@@ -182,9 +197,10 @@ Available options (apply to both inline and interactive modes unless noted):
 - `-q, --query TEXT`: Run in inline mode with the given query
 - `--read FILE`: Read query text from FILE, or `-` to read from stdin (pipe). When combined with `-q` the file/pipe content is appended after the query text.
 - `--file PATH`: Attach a file (or glob pattern) for analysis; the file's text is folded into the next user message. Repeatable: `--file a.py --file 'src/*.py'`. Inside the REPL use `/file`, `/pick`, `/files`, `/clearfiles` for the same feature.
+- `--allow-sensitive`: Permit `--file` to attach credential-shaped files (`.env`, `~/.ssh/id_rsa`, `*.pem`, `~/.aws/credentials`, …). These are refused by default because their contents would be uploaded to the API.
 - `-m, --model MODEL`: Model to use (`deepseek-chat`, `deepseek-coder`, `deepseek-reasoner`)
 - `-r, --raw`: Output raw response without token usage information (inline only)
-- `-S, --system TEXT`: Set the system message (default: `"You are a helpful assistant."`)
+- `-S, --system TEXT`: Set the system message. When omitted, a system message saved from a previous session (via `/system`) is preserved; otherwise `"You are a helpful assistant."` is used.
 - `-s, --stream`: Enable streaming mode
 - `--no-stream`: Disable streaming mode
 
@@ -233,6 +249,9 @@ Basic Commands:
 - `/about` - Show API information
 - `/balance` - Show instructions for checking your account balance on the DeepSeek platform
 - `/multiline` - Show multiline mode information (enable with --multiline flag)
+- `/quit`, `/exit` (or `quit`, `exit`) - Exit the program
+
+At the prompt, Ctrl+C cancels the line you are typing and returns you to the prompt; press it twice in a row (or use Ctrl+D) to exit.
 
 Model Settings:
 - `/temp X` - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
@@ -257,13 +276,17 @@ Function Calling:
 - `/clearfuncs` - Clear registered functions
 
 File Attachments (analyse local files):
-- `/file PATH...` - Attach one or more files for the next message. Accepts literal paths, `~`-paths, and glob patterns (e.g. `/file src/*.py`)
+- `/file PATH...` - Attach one or more files for the next message. Accepts literal paths, `~`-paths, and glob patterns (e.g. `/file src/*.py`). Add `--allow-sensitive` to attach credential-shaped files, which are refused by default
 - `/pick` - Interactive file picker with tab completion (multi-select, space-separated)
 - `/files` - List currently attached files
 - `/dropfile X` - Remove an attached file by index (see `/files`) or by absolute path
 - `/clearfiles` - Clear all attached files
 
 Attached file contents are folded into the next outgoing user message and then automatically cleared, matching the DeepSeek app's file-upload UX. Limits: 1 MiB per file, 4 MiB total, up to 20 files; binary files are rejected.
+
+Files that look like secrets — `.env` / `.env.*`, `*.pem`, `*.key`, `id_rsa`, `.netrc`, `.npmrc`, and anything under `.ssh/`, `.aws/`, `.gnupg/`, `.kube/`, `.docker/` — are refused so a broad glob such as `/file **/*` cannot silently upload credentials. Attach one deliberately with `/file --allow-sensitive <path>` (or `--allow-sensitive` on the command line).
+
+Note that once attached, a file's text becomes part of the conversation and is stored in the local history file, so it is re-sent with subsequent messages until you run `/clear`.
 
 ### Model-Specific Features
 
@@ -473,9 +496,10 @@ print(message.content)
 ## Error Handling
 
 - Automatic retry with exponential backoff
-- Rate limit handling
+- Rate limit handling, honouring the server's `Retry-After` header up to a bounded maximum
 - Clear error messages
 - API status feedback
+- On a 401 the CLI offers to take a replacement API key (read without echo). In non-interactive runs it reports the error instead of blocking on a prompt.
 
 ## Support
 

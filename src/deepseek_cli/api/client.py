@@ -1,35 +1,46 @@
 """DeepSeek API client handler"""
 
+import getpass
 import os
+import sys
 from openai import OpenAI
 from typing import Dict, Any, List
 
-# Simplified import handling with clear fallback chain
-try:
-    # When installed via pip/pipx (package_dir={"": "src"})
-    from config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-    from utils.exceptions import DeepSeekError
-except ImportError:
-    # When running from source (development mode)
-    from src.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
-    from src.utils.exceptions import DeepSeekError
+from deepseek_cli.config.settings import DEFAULT_BASE_URL, DEFAULT_BETA_URL
+from deepseek_cli.utils.exceptions import DeepSeekError
 
-# Anthropic API compatibility
-ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic"
 
 class APIClient:
-    def __init__(self, use_anthropic: bool = False) -> None:
+    def __init__(self) -> None:
         self.api_key = self._get_api_key()
-        self.use_anthropic = use_anthropic
-        self.client = self._create_client()
+        # Set before _create_client(), which reads it to pick the base URL.
         self.beta_mode = False
+        self.client = self._create_client()
 
     @staticmethod
-    def _get_api_key() -> str:
+    def _prompt_secret(prompt: str) -> str:
+        """Read a secret without echoing it to the terminal.
+
+        Uses getpass so the key never lands in terminal scrollback or in the
+        readline history buffer. Requires an interactive stdin; a non-TTY
+        (piped/redirected) invocation raises rather than blocking forever.
+        """
+        if not sys.stdin.isatty():
+            raise DeepSeekError(
+                "No API key available and stdin is not a terminal. "
+                "Set the DEEPSEEK_API_KEY environment variable."
+            )
+        try:
+            return getpass.getpass(prompt).strip()
+        except (EOFError, KeyboardInterrupt):
+            raise DeepSeekError("API key entry cancelled")
+
+    @classmethod
+    def _get_api_key(cls) -> str:
         """Get API key from environment variable or prompt user"""
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
-            api_key = input("Please enter your DeepSeek API key: ").strip()
+            api_key = cls._prompt_secret("Please enter your DeepSeek API key: ")
             if not api_key:
                 raise DeepSeekError("API key cannot be empty")
         return api_key
@@ -37,7 +48,7 @@ class APIClient:
     def _create_client(self) -> OpenAI:
         """Create OpenAI client with DeepSeek configuration"""
         try:
-            base_url = ANTHROPIC_BASE_URL if self.use_anthropic else DEFAULT_BASE_URL
+            base_url = DEFAULT_BETA_URL if self.beta_mode else DEFAULT_BASE_URL
             return OpenAI(
                 api_key=self.api_key,
                 base_url=base_url
@@ -48,13 +59,7 @@ class APIClient:
     def toggle_beta(self) -> None:
         """Toggle beta mode and update base URL"""
         self.beta_mode = not self.beta_mode
-        if not self.use_anthropic:
-            self.client.base_url = DEFAULT_BETA_URL if self.beta_mode else DEFAULT_BASE_URL
-
-    def toggle_anthropic(self) -> None:
-        """Toggle Anthropic API compatibility mode"""
-        self.use_anthropic = not self.use_anthropic
-        self.client = self._create_client()
+        self.client.base_url = DEFAULT_BETA_URL if self.beta_mode else DEFAULT_BASE_URL
 
     def list_models(self) -> Dict[str, Any]:
         """List available models"""
@@ -65,10 +70,10 @@ class APIClient:
 
     def create_chat_completion(self, **kwargs: Any) -> Any:
         """Create a chat completion with proper function handling
-        
+
         Args:
             **kwargs: Arguments to pass to the chat completion API
-            
+
         Returns:
             Chat completion response
         """
@@ -76,14 +81,14 @@ class APIClient:
         if "functions" in kwargs:
             functions: List[Dict[str, Any]] = kwargs.pop("functions")
             kwargs["tools"] = [{"type": "function", "function": f} for f in functions]
-        
+
         # Let SDK exceptions propagate directly so callers can inspect
         # status_code, headers, code, etc. (APIError, RateLimitError, …)
         return self.client.chat.completions.create(**kwargs)
 
     def update_api_key(self, new_key: str) -> None:
         """Update API key and recreate client
-        
+
         Args:
             new_key: The new API key to use
         """
@@ -91,3 +96,7 @@ class APIClient:
             raise DeepSeekError("API key cannot be empty")
         self.api_key = new_key.strip()
         self.client = self._create_client()
+
+    def prompt_for_new_api_key(self) -> None:
+        """Interactively read a replacement API key and rebuild the client."""
+        self.update_api_key(self._prompt_secret("Please enter your new DeepSeek API key: "))

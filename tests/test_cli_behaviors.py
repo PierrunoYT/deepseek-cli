@@ -8,17 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Import helpers – support both installed-package and source-tree layouts
-# ---------------------------------------------------------------------------
-try:
-    from cli.deepseek_cli import _read_input, main
-    from utils.persistence import _resolve_dirs
-    import cli.deepseek_cli as _cli_mod
-except ImportError:
-    from src.cli.deepseek_cli import _read_input, main
-    from src.utils.persistence import _resolve_dirs
-    import src.cli.deepseek_cli as _cli_mod
+from deepseek_cli.cli.deepseek_cli import _read_input, main
+from deepseek_cli.utils.persistence import _resolve_dirs
+import deepseek_cli.cli.deepseek_cli as _cli_mod
 
 
 # ===========================================================================
@@ -284,13 +276,51 @@ class TestRunInputHandling:
                     cli.run()
         mock_cleanup.assert_called()
 
-    def test_keyboard_interrupt_exits_gracefully(self):
+    def test_repeated_keyboard_interrupt_exits_gracefully(self):
+        """Two consecutive Ctrl+C presses leave the REPL and still clean up."""
         cli = _make_cli_instance()
         with patch("builtins.input", side_effect=KeyboardInterrupt):
             with patch.object(cli, "_cleanup") as mock_cleanup:
                 with patch.object(cli, "_print_welcome"):
                     cli.run()
         mock_cleanup.assert_called()
+
+    def test_single_keyboard_interrupt_cancels_line_without_exiting(self):
+        """A lone Ctrl+C cancels the current line and returns to the prompt."""
+        cli = _make_cli_instance()
+        calls = []
+
+        def fake_input():
+            calls.append(1)
+            if len(calls) == 1:
+                raise KeyboardInterrupt
+            raise EOFError
+
+        with patch("builtins.input", side_effect=fake_input):
+            with patch.object(cli, "_cleanup"):
+                with patch.object(cli, "_print_welcome"):
+                    cli.run()
+        # Prompted again after the interrupt rather than exiting on it.
+        assert len(calls) == 2
+
+    def test_interrupt_counter_resets_after_successful_input(self):
+        """Ctrl+C, then real input, then Ctrl+C must not exit on that second one."""
+        cli = _make_cli_instance()
+        steps = iter([KeyboardInterrupt, "", KeyboardInterrupt, "", EOFError])
+        calls = []
+
+        def fake_input():
+            calls.append(1)
+            step = next(steps)
+            if isinstance(step, str):
+                return step
+            raise step
+
+        with patch("builtins.input", side_effect=fake_input):
+            with patch.object(cli, "_cleanup"):
+                with patch.object(cli, "_print_welcome"):
+                    cli.run()
+        assert len(calls) == 5
 
     def test_empty_input_continues_loop(self):
         """An empty Enter press must not exit – the loop should ask again."""
