@@ -7,9 +7,10 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 ## Features
 
 - 🤖 Multiple Model Support
-  - DeepSeek-V3.2 (deepseek-chat) - Non-thinking Mode
-  - DeepSeek-R1 (deepseek-reasoner) - Thinking Mode with Chain of Thought
-  - DeepSeek-V2.5 Coder (deepseek-coder)
+  - DeepSeek-V4-Flash (`deepseek-v4-flash`) - 284B total / 13B active
+  - DeepSeek-V4-Pro (`deepseek-v4-pro`) - 1.6T total / 49B active
+  - DeepSeek-V4-Flash-Vision (`deepseek-v4-flash-vision-exp`) - experimental
+  - Thinking mode with Chain of Thought on any V4 model, via `/think`
 
 - 🔄 Advanced Conversation Features
   - Multi-round conversations with context preservation
@@ -22,7 +23,7 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
   - **File attachments for analysis** — attach one or more files (with glob support and an interactive picker) so the model can analyse them, mirroring the DeepSeek app's file-upload feature
   - **Multiline input support** for complex prompts
   - **XDG Base Directory** support for clean home directory layout
-  - 128K context window for all models
+  - 1M context window for all models, up to 384K output tokens
 
 - 🚀 Advanced Features
   - Prefix Completion: Complete assistant messages from a given prefix (Stable)
@@ -32,12 +33,13 @@ A powerful command-line interface for interacting with DeepSeek's AI models.
 
 - 🛠️ Advanced Controls
   - Temperature control with presets
+  - Thinking mode with selectable reasoning effort (low / high / max)
+  - Configurable output token cap (`/maxtokens`, `--max-tokens`)
   - JSON output mode
   - Streaming responses (disabled by default; enable with `-s` / `--stream`)
   - Function calling (up to 128 functions)
   - Stop sequences
   - Top-p sampling
-  - Frequency and presence penalties
 
 - 📦 Package Management
   - Automatic version checking (cached for 24 hours, so startup is not blocked on a network call)
@@ -140,7 +142,7 @@ You can also use DeepSeek CLI in inline mode to get quick answers without starti
 deepseek -q "What is the capital of France?"
 
 # Specify a model
-deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder
+deepseek -q "Write a Python function to calculate factorial" -m deepseek-v4-pro
 
 # Get raw output without token usage information
 deepseek -q "Write a Python function to calculate factorial" -r
@@ -182,7 +184,10 @@ echo "What is the time complexity of quicksort?" | deepseek --read -
 git diff HEAD | deepseek --read - -q "Review this diff:" -S "You are a code reviewer."
 
 # Combine options
-deepseek -q "Write a Python function to calculate factorial" -m deepseek-coder -r -S "You are an expert Python developer."
+deepseek -q "Write a Python function to calculate factorial" -m deepseek-v4-pro -r -S "You are an expert Python developer."
+
+# Think before answering, with maximum reasoning effort
+deepseek --think --reasoning-effort max -q "Prove that sqrt(2) is irrational."
 
 # Multiline example
 deepseek --multiline -q "
@@ -198,7 +203,7 @@ Available options (apply to both inline and interactive modes unless noted):
 - `--read FILE`: Read query text from FILE, or `-` to read from stdin (pipe). When combined with `-q` the file/pipe content is appended after the query text.
 - `--file PATH`: Attach a file (or glob pattern) for analysis; the file's text is folded into the next user message. Repeatable: `--file a.py --file 'src/*.py'`. Inside the REPL use `/file`, `/pick`, `/files`, `/clearfiles` for the same feature.
 - `--allow-sensitive`: Permit `--file` to attach credential-shaped files (`.env`, `~/.ssh/id_rsa`, `*.pem`, `~/.aws/credentials`, …). These are refused by default because their contents would be uploaded to the API.
-- `-m, --model MODEL`: Model to use (`deepseek-chat`, `deepseek-coder`, `deepseek-reasoner`)
+- `-m, --model MODEL`: Model to use (`deepseek-v4-flash`, `deepseek-v4-pro`, `deepseek-v4-flash-vision-exp`). The retired names `deepseek-chat`, `deepseek-reasoner` and `deepseek-coder` are still accepted and map to `deepseek-v4-flash` with a warning.
 - `-r, --raw`: Output raw response without token usage information (inline only)
 - `-S, --system TEXT`: Set the system message. When omitted, a system message saved from a previous session (via `/system`) is preserved; otherwise `"You are a helpful assistant."` is used.
 - `-s, --stream`: Enable streaming mode
@@ -206,17 +211,20 @@ Available options (apply to both inline and interactive modes unless noted):
 
 **Output / Mode**
 - `--json`: Enable JSON output mode (`response_format: json_object`)
-- `--beta`: Enable the beta API endpoint
+- `--beta`: Enable the beta API endpoint (required for `--prefix` and `--fim`; enabled automatically when either is used)
 - `--prefix`: Enable prefix completion mode (last user message becomes the assistant prefix)
-- `--fim`: Enable Fill-in-the-Middle mode (use `<fim_prefix>`/`<fim_suffix>` tags in your query)
+- `--fim`: Enable Fill-in-the-Middle mode (use `<fim_prefix>`/`<fim_suffix>` tags in your query). Uses the beta completions endpoint; output is capped at 4K tokens
+- `--think`: Enable Thinking mode (a per-request parameter on the V4 models, replacing the retired `deepseek-reasoner`)
+- `--reasoning-effort {low,high,max}`: Reasoning effort used when Thinking mode is on (default `high`)
+- `--max-tokens N`: Maximum output tokens for the session (model maximum is 384000)
 - `--multiline`: Enable multiline input mode (Enter for newlines, empty line or Ctrl+D to submit by default)
 - `--multiline-submit MODE`: How to submit in multiline mode: `empty-line` (default, press Enter on a blank line) or `shift-enter` (Shift+Enter — requires a terminal that distinguishes Shift+Enter from Enter, e.g. Kitty, WezTerm)
 
-**Sampling & Penalties**
+**Sampling**
 - `--temp FLOAT`: Set temperature (0–2)
-- `--freq FLOAT`: Set frequency penalty (−2 to 2)
-- `--pres FLOAT`: Set presence penalty (−2 to 2)
 - `--top-p FLOAT`: Set top-p sampling (0–1)
+
+> `--freq` and `--pres` are still accepted so existing scripts do not break, but they are ignored: the DeepSeek API no longer supports `frequency_penalty` or `presence_penalty`.
 
 **Stop Sequences**
 - `--stop SEQ`: Add a stop sequence (can be repeated: `--stop A --stop B`)
@@ -241,7 +249,7 @@ Available options (apply to both inline and interactive modes unless noted):
 Basic Commands:
 - `/help` - Show help message
 - `/models` - List available models
-- `/model X` - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
+- `/model X` - Switch model (deepseek-v4-flash, deepseek-v4-pro, deepseek-v4-flash-vision-exp)
 - `/system X` - Set a custom system message mid-session
 - `/system` - Show the current system message
 - `/clear` - Clear conversation history
@@ -255,9 +263,14 @@ At the prompt, Ctrl+C cancels the line you are typing and returns you to the pro
 
 Model Settings:
 - `/temp X` - Set temperature (0-2) or use preset (coding/data/chat/translation/creative)
-- `/freq X` - Set frequency penalty (-2 to 2)
-- `/pres X` - Set presence penalty (-2 to 2)
 - `/top_p X` - Set top_p sampling (0 to 1)
+- `/maxtokens N` - Set the maximum output tokens for this session
+- `/think` - Toggle Thinking mode (Chain of Thought) on the current model
+- `/effort X` - Set reasoning effort used by Thinking mode: `low`, `high`, or `max`
+
+> `/freq` and `/pres` have been removed. The DeepSeek API no longer supports
+> `frequency_penalty` or `presence_penalty`; running either command now prints
+> an explanation instead.
 
 Beta Features:
 - `/beta` - Toggle beta features
@@ -290,50 +303,50 @@ Note that once attached, a file's text becomes part of the conversation and is s
 
 ### Model-Specific Features
 
-#### DeepSeek-V3.2 (deepseek-chat)
-- **Version**: DeepSeek-V3.2 (Non-thinking Mode) - Updated December 2025
-- **Context Length**: 128K tokens (128,000 tokens)
-- **Output Length**: Default 4K, Maximum 8K tokens
-- **Supports all features**:
-  - JSON Output ✓
-  - Function Calling ✓ (up to 128 functions)
-  - Chat Prefix Completion ✓
-  - Fill-in-the-Middle ✓
-- General-purpose chat model
-- Latest improvements:
-  - Enhanced instruction following (77.6% IFEval accuracy)
-  - Improved JSON output (97% parsing rate)
-  - Advanced reasoning capabilities
-  - Role-playing capabilities
-  - Agent capability optimizations (Code Agent, Search Agent)
+All V4 models share a **1M token context window** and a **384K maximum output**,
+and all of them support both Non-thinking and Thinking modes. Thinking is
+selected per request with `/think` (or `--think`), not by switching model.
 
-#### DeepSeek-R1 (deepseek-reasoner)
-- **Version**: DeepSeek-R1 (Thinking Mode)
-- **Context Length**: 128K tokens (128,000 tokens)
-- **Output Length**: Default 32K, Maximum 64K tokens
-- **Chain of Thought**: Displays reasoning process before final answer
+#### DeepSeek-V4-Flash (`deepseek-v4-flash`) — default
+
+- **Parameters**: 284B total / 13B active
+- **Context Length**: 1M tokens
+- **Output Length**: up to 384K tokens (this CLI defaults to 8K; raise with `/maxtokens`)
 - **Supported features**:
   - JSON Output ✓
-  - Chat Prefix Completion ✓
-- **Unsupported features**:
-  - Function Calling ✗ (automatically falls back to deepseek-chat if tools provided)
-  - Fill-in-the-Middle ✗
-  - Temperature, top_p, presence/frequency penalties ✗
-- Excels at complex reasoning and problem-solving tasks
-- Enhanced agent capabilities with benchmark improvements
-
-#### DeepSeek-V2.5 Coder (deepseek-coder)
-
-> ⚠️ **Note:** `deepseek-coder` may be deprecated and could redirect to `deepseek-chat`. Prefer `deepseek-chat` for new projects.
-
-- **Context Length**: 128K tokens
-- **Output Length**: Default 4K, Maximum 8K tokens
-- **Supports all features**:
-  - JSON Output ✓
-  - Function Calling ✓
+  - Function Calling ✓ (up to 128 functions)
   - Chat Prefix Completion (Beta) ✓
   - Fill-in-the-Middle (Beta) ✓
-- Optimized for code generation and analysis
+  - Thinking mode ✓
+- The general-purpose default: fastest and cheapest of the three.
+
+#### DeepSeek-V4-Pro (`deepseek-v4-pro`)
+
+- **Parameters**: 1.6T total / 49B active
+- **Context Length**: 1M tokens
+- **Output Length**: up to 384K tokens
+- **Supported features**: same as V4-Flash (JSON, function calling, prefix, FIM, thinking)
+- The strongest model; best for hard reasoning and code tasks. Pair with
+  `/think` and `/effort max` for the most thorough answers.
+
+#### DeepSeek-V4-Flash-Vision (`deepseek-v4-flash-vision-exp`)
+
+> ⚠️ **Experimental.** Image input is billed as input tokens alongside your
+> text. This CLI sends text only — attaching an image is not yet supported, so
+> the model behaves like V4-Flash here.
+
+- **Context Length**: 1M tokens
+- **Output Length**: up to 384K tokens
+- **Fill-in-the-Middle**: ✗
+
+#### Retired models
+
+`deepseek-chat`, `deepseek-reasoner` and `deepseek-coder` were fully retired on
+**2026-07-24** and are no longer served. The CLI still accepts those names — from
+a command, a `--model` flag, or a settings file written by an older version — and
+maps them to `deepseek-v4-flash`, printing a warning. Update your scripts to the
+V4 names.
+
 
 ### Feature Details
 
@@ -367,11 +380,47 @@ On fresh installations (no existing `~/.deepseek-cli` directory) the CLI follows
 
 **Existing users** who already have a `~/.deepseek-cli` directory are unaffected — that directory continues to be used automatically. No data migration is needed.
 
+#### Thinking Mode
+
+On the V4 models, reasoning is a per-request mode rather than a separate model.
+Toggle it with `/think` in the REPL or `--think` on the command line, and choose
+how hard the model works with `/effort` / `--reasoning-effort` (`low`, `high`,
+the default, or `max`):
+
+```bash
+deepseek --think --reasoning-effort max -q "Prove that sqrt(2) is irrational."
+```
+
+The chain of thought arrives in a separate `reasoning_content` field and is
+rendered above the answer in its own panel. Use `-r` / `/raw` to suppress it.
+
 #### Fill-in-the-Middle (FIM)
-Use XML-style tags to define the gap:
+
+Use XML-style tags to mark the gap you want filled. Closing tags are optional:
+
 ```
 <fim_prefix>def calculate_sum(a, b):</fim_prefix><fim_suffix>    return result</fim_suffix>
 ```
+
+```bash
+deepseek --fim -q "<fim_prefix>def add(a, b):<fim_suffix>    return result"
+```
+
+Text before `<fim_suffix>` becomes the prompt and text after it becomes the
+suffix. With no `<fim_suffix>` tag the whole input is treated as a prefix, which
+makes FIM behave like a plain completion.
+
+FIM is a Beta feature served from the legacy completions endpoint, so the CLI
+switches to `https://api.deepseek.com/beta` automatically when `/fim` is on.
+Its output is capped at **4K tokens** regardless of `/maxtokens`. FIM requests
+are completions rather than conversation turns, so they are not added to the
+chat history.
+
+#### Prefix Completion
+
+`/prefix` (or `--prefix`) re-sends your last message as the *start* of the
+assistant's reply, so the model continues from it instead of responding to it.
+Like FIM this is Beta-only, and the CLI enables the beta endpoint for you.
 
 #### Multiline Input
 Enable multiline input mode for complex prompts that span multiple lines:
@@ -448,8 +497,8 @@ npm install -g @anthropic-ai/claude-code
 # Configure environment variables
 export ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic
 export ANTHROPIC_AUTH_TOKEN=${DEEPSEEK_API_KEY}
-export ANTHROPIC_MODEL=deepseek-chat
-export ANTHROPIC_SMALL_FAST_MODEL=deepseek-chat
+export ANTHROPIC_MODEL=deepseek-v4-pro
+export ANTHROPIC_SMALL_FAST_MODEL=deepseek-v4-flash
 
 # Run in your project
 cd my-project
@@ -466,7 +515,7 @@ client = anthropic.Anthropic(
 )
 
 message = client.messages.create(
-    model="deepseek-chat",
+    model="deepseek-v4-pro",
     max_tokens=1000,
     system="You are a helpful assistant.",
     messages=[

@@ -86,6 +86,15 @@ class APIClient:
         # status_code, headers, code, etc. (APIError, RateLimitError, …)
         return self.client.chat.completions.create(**kwargs)
 
+    def create_completion(self, **kwargs: Any) -> Any:
+        """Create a (non-chat) text completion.
+
+        Used for Fill-in-the-Middle, which the API serves from the legacy
+        completions endpoint on the Beta host rather than from chat
+        completions. Callers must enable beta mode first.
+        """
+        return self.client.completions.create(**kwargs)
+
     def update_api_key(self, new_key: str) -> None:
         """Update API key and recreate client
 

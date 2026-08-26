@@ -8,7 +8,14 @@ from typing import Optional, Dict, Any, Tuple
 from deepseek_cli.api.client import APIClient
 from deepseek_cli.handlers.chat_handler import ChatHandler
 from deepseek_cli.handlers.file_handler import FileHandler, pick_files
-from deepseek_cli.config.settings import API_CONTACT, API_LICENSE, API_TERMS, API_DOCS
+from deepseek_cli.config.settings import (
+    API_CONTACT,
+    API_LICENSE,
+    API_TERMS,
+    API_DOCS,
+    MODEL_CONFIGS,
+    REASONING_EFFORT_LEVELS,
+)
 
 class CommandHandler:
     def __init__(
@@ -60,7 +67,11 @@ class CommandHandler:
 
         elif command_lower == '/beta':
             self.api_client.toggle_beta()
-            return True, f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'} (Note: Most features are now stable and don't require beta mode)"
+            return True, (
+                f"Beta mode {'enabled' if self.api_client.beta_mode else 'disabled'} "
+                f"(required for /prefix and /fim; the CLI enables it automatically "
+                f"when those are in use)"
+            )
 
         elif command_lower == '/prefix':
             self.chat_handler.prefix_mode = not self.chat_handler.prefix_mode
@@ -91,23 +102,41 @@ class CommandHandler:
                 return True, f"Temperature set to {self.chat_handler.temperature}"
             return True, "Invalid temperature value or preset"
 
-        elif command_lower.startswith('/freq '):
-            try:
-                penalty = float(command_raw.split(' ', 1)[1])
-                if self.chat_handler.set_frequency_penalty(penalty):
-                    return True, f"Frequency penalty set to {penalty}"
-                return True, "Frequency penalty must be between -2.0 and 2.0"
-            except (ValueError, IndexError):
-                return True, "Invalid frequency penalty value"
+        elif command_lower.startswith('/freq') or command_lower.startswith('/pres'):
+            # Retained so the commands give an explanation rather than an
+            # "unknown command" fall-through into a chat message.
+            return True, (
+                "The DeepSeek API no longer supports frequency_penalty or "
+                "presence_penalty; these parameters are ignored server-side, so "
+                "this CLI no longer sends them. Use /temp or /top_p instead."
+            )
 
-        elif command_lower.startswith('/pres '):
+        elif command_lower == '/think':
+            self.chat_handler.toggle_thinking()
+            state = 'enabled' if self.chat_handler.thinking else 'disabled'
+            return True, (
+                f"Thinking mode {state} "
+                f"(reasoning effort: {self.chat_handler.reasoning_effort})"
+            )
+
+        elif command_lower.startswith('/effort '):
+            effort = command_raw[8:].strip()
+            if self.chat_handler.set_reasoning_effort(effort):
+                return True, f"Reasoning effort set to {self.chat_handler.reasoning_effort}"
+            return True, (
+                "Invalid effort. Choose one of: "
+                + ", ".join(REASONING_EFFORT_LEVELS)
+            )
+
+        elif command_lower.startswith('/maxtokens '):
             try:
-                penalty = float(command_raw.split(' ', 1)[1])
-                if self.chat_handler.set_presence_penalty(penalty):
-                    return True, f"Presence penalty set to {penalty}"
-                return True, "Presence penalty must be between -2.0 and 2.0"
+                value = int(command_raw.split(' ', 1)[1].strip())
             except (ValueError, IndexError):
-                return True, "Invalid presence penalty value"
+                return True, "Invalid max tokens value"
+            if self.chat_handler.set_max_tokens(value):
+                return True, f"Max output tokens set to {self.chat_handler.max_tokens}"
+            limit = MODEL_CONFIGS[self.chat_handler.model]["max_tokens"]
+            return True, f"Max tokens must be between 1 and {limit}"
 
         elif command_lower.startswith('/top_p '):
             try:
@@ -297,15 +326,17 @@ class CommandHandler:
   /raw         - Toggle raw output mode (bypass formatting for edge cases)
   /json        - Toggle JSON output mode
   /stream      - Toggle streaming mode
-  /beta        - Toggle beta API endpoint
+  /beta        - Toggle beta API endpoint (required for /prefix and /fim)
   /prefix      - Toggle prefix completion mode (last user msg becomes assistant prefix)
   /fim         - Toggle Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)
+  /think       - Toggle Thinking mode (replaces the retired deepseek-reasoner)
+  /effort X    - Set reasoning effort: low, high, max (used when /think is on)
   /cache       - Show context caching status (automatic, no toggle needed)
   /models      - List available models
-  /model X     - Switch model (deepseek-chat, deepseek-coder, deepseek-reasoner)
+  /model X     - Switch model (deepseek-v4-flash, deepseek-v4-pro,
+                 deepseek-v4-flash-vision-exp)
+  /maxtokens N - Set max output tokens for this session
   /temp X      - Set temperature (0-2) or preset (coding/data/chat/translation/creative)
-  /freq X      - Set frequency penalty (-2 to 2)
-  /pres X      - Set presence penalty (-2 to 2)
   /top_p X     - Set top_p sampling (0 to 1)
   /stop X      - Add stop sequence
   /clearstop   - Clear all stop sequences
@@ -329,9 +360,17 @@ class CommandHandler:
   quit, exit   - Exit the program
 
 Notes:
-  - deepseek-chat is DeepSeek-V3.2 (Non-thinking Mode) with 128K context, 8K output
-  - deepseek-reasoner is DeepSeek-V3.2 (Thinking Mode) with 128K context, 64K output
-  - deepseek-coder is DeepSeek-V2.5 (may redirect to deepseek-chat)
+  - deepseek-v4-flash: 284B total / 13B active, 1M context, 384K max output
+  - deepseek-v4-pro: 1.6T total / 49B active, 1M context, 384K max output
+  - deepseek-v4-flash-vision-exp: experimental image-input variant (this CLI
+    sends text only)
+  - Thinking is a per-request mode on all V4 models, set with /think and
+    /effort. The old deepseek-chat / deepseek-reasoner / deepseek-coder names
+    were retired on 2026-07-24 and now map to deepseek-v4-flash.
+  - frequency_penalty / presence_penalty are no longer supported by the API,
+    so /freq and /pres have been removed.
+  - /prefix and /fim are Beta-only; the CLI switches to the beta endpoint
+    automatically when you use them. FIM output is capped at 4K tokens.
   - Temperature presets:
     coding: 0.0, data: 1.0, chat: 1.3, translation: 1.3, creative: 1.5
   - Context caching is automatic on the DeepSeek API (no manual toggle required)"""

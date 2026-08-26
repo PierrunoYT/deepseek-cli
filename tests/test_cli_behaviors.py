@@ -397,3 +397,149 @@ class TestMultilineSubmitModes:
                     cli.run()
 
         assert submitted_modes == ["empty-line"]
+
+
+# ===========================================================================
+# V4 model layer: aliases, thinking mode, deprecated params, FIM
+# ===========================================================================
+
+
+from deepseek_cli.handlers.chat_handler import ChatHandler
+from deepseek_cli.config.settings import (
+    MODEL_CONFIGS,
+    DEFAULT_MODEL,
+    LEGACY_MODEL_ALIASES,
+)
+
+
+def _bare_handler():
+    """A ChatHandler with no disk/network side effects."""
+    h = ChatHandler.__new__(ChatHandler)
+    from rich.console import Console
+
+    h.console = Console()
+    h.messages = []
+    h.model = DEFAULT_MODEL
+    h.max_tokens = MODEL_CONFIGS[DEFAULT_MODEL]["default_max_tokens"]
+    h.stream = False
+    h.json_mode = False
+    h.functions = []
+    h.prefix_mode = False
+    h.fim_mode = False
+    h.thinking = False
+    h.reasoning_effort = "high"
+    h.temperature = 1.0
+    h.top_p = 1.0
+    h.stop_sequences = []
+    h.stream_options = {"include_usage": True}
+    h.raw_mode = False
+    h.save_state = lambda: True
+    return h
+
+
+class TestModelResolution:
+    def test_current_models_are_v4(self):
+        assert set(MODEL_CONFIGS) == {
+            "deepseek-v4-flash",
+            "deepseek-v4-pro",
+            "deepseek-v4-flash-vision-exp",
+        }
+
+    @pytest.mark.parametrize("legacy", sorted(LEGACY_MODEL_ALIASES))
+    def test_retired_names_resolve_to_a_served_model(self, legacy):
+        resolved = ChatHandler.resolve_model(legacy)
+        assert resolved in MODEL_CONFIGS
+
+    def test_unknown_model_is_rejected(self):
+        assert ChatHandler.resolve_model("gpt-4") is None
+
+    def test_switch_model_accepts_v4_and_maps_legacy(self):
+        h = _bare_handler()
+        assert h.switch_model("deepseek-v4-pro") is True
+        assert h.model == "deepseek-v4-pro"
+        assert h.switch_model("deepseek-reasoner") is True
+        assert h.model in MODEL_CONFIGS
+        assert h.switch_model("nope") is False
+
+
+class TestRequestConstruction:
+    def test_deprecated_penalties_are_never_sent(self):
+        kwargs = _bare_handler().prepare_chat_request()
+        assert "frequency_penalty" not in kwargs
+        assert "presence_penalty" not in kwargs
+
+    def test_thinking_off_by_default(self):
+        kwargs = _bare_handler().prepare_chat_request()
+        assert "extra_body" not in kwargs
+        assert "reasoning_effort" not in kwargs
+
+    def test_thinking_sets_extra_body_and_effort(self):
+        h = _bare_handler()
+        h.thinking = True
+        h.reasoning_effort = "max"
+        kwargs = h.prepare_chat_request()
+        assert kwargs["extra_body"] == {"thinking": {"type": "enabled"}}
+        assert kwargs["reasoning_effort"] == "max"
+
+    def test_temperature_and_top_p_sent_for_all_models(self):
+        h = _bare_handler()
+        h.model = "deepseek-v4-pro"
+        kwargs = h.prepare_chat_request()
+        assert kwargs["temperature"] == 1.0
+        assert kwargs["top_p"] == 1.0
+
+    def test_max_tokens_bounded_by_model_limit(self):
+        h = _bare_handler()
+        limit = MODEL_CONFIGS[h.model]["max_tokens"]
+        assert h.set_max_tokens(limit) is True
+        assert h.set_max_tokens(limit + 1) is False
+        assert h.set_max_tokens(0) is False
+
+
+class TestReasoningEffort:
+    @pytest.mark.parametrize("level", ["low", "high", "max"])
+    def test_valid_levels(self, level):
+        h = _bare_handler()
+        assert h.set_reasoning_effort(level) is True
+        assert h.reasoning_effort == level
+
+    def test_invalid_level_rejected(self):
+        h = _bare_handler()
+        assert h.set_reasoning_effort("medium") is False
+
+
+class TestFimParsing:
+    def test_splits_on_suffix_tag(self):
+        prefix, suffix = ChatHandler.parse_fim_input(
+            "<fim_prefix>def f():\n<fim_suffix>    return x"
+        )
+        assert prefix == "def f():\n"
+        assert suffix == "    return x"
+
+    def test_prefix_tag_optional(self):
+        prefix, suffix = ChatHandler.parse_fim_input("head<fim_suffix>tail")
+        assert (prefix, suffix) == ("head", "tail")
+
+    def test_no_suffix_tag_means_plain_completion(self):
+        prefix, suffix = ChatHandler.parse_fim_input("just a prefix")
+        assert prefix == "just a prefix"
+        assert suffix is None
+
+    def test_fim_request_caps_max_tokens_at_4k(self):
+        h = _bare_handler()
+        h.max_tokens = 384_000
+        kwargs = h.prepare_fim_request("a", "b")
+        assert kwargs["max_tokens"] == 4096
+        assert kwargs["prompt"] == "a"
+        assert kwargs["suffix"] == "b"
+
+    def test_fim_request_omits_suffix_when_absent(self):
+        kwargs = _bare_handler().prepare_fim_request("a", None)
+        assert "suffix" not in kwargs
+
+    def test_closing_tags_are_tolerated(self):
+        prefix, suffix = ChatHandler.parse_fim_input(
+            "<fim_prefix>def f():</fim_prefix><fim_suffix>    return x</fim_suffix>"
+        )
+        assert prefix == "def f():"
+        assert suffix == "    return x"

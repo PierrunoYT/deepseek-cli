@@ -106,6 +106,11 @@ from deepseek_cli.handlers.command_handler import CommandHandler
 from deepseek_cli.handlers.error_handler import ErrorHandler
 from deepseek_cli.handlers.file_handler import FileHandler
 from deepseek_cli.utils.exceptions import DeepSeekError
+from deepseek_cli.config.settings import (
+    MODEL_CONFIGS,
+    LEGACY_MODEL_ALIASES,
+    REASONING_EFFORT_LEVELS,
+)
 
 
 class DeepSeekCLI:
@@ -137,6 +142,22 @@ class DeepSeekCLI:
         except (ValueError, AttributeError, OSError):
             # Not the main thread, or SIGTERM unavailable on this platform.
             pass
+
+    def _ensure_beta_for_beta_features(self) -> None:
+        """Switch to the Beta host when a Beta-only feature is active.
+
+        Prefix completion and FIM are documented as requiring
+        base_url=https://api.deepseek.com/beta. Enabling them without it fails
+        server-side, so turn beta on rather than letting the request 400.
+        """
+        needs_beta = self.chat_handler.prefix_mode or self.chat_handler.fim_mode
+        if needs_beta and not self.api_client.beta_mode:
+            feature = "FIM" if self.chat_handler.fim_mode else "Prefix completion"
+            self.api_client.toggle_beta()
+            console.print(
+                f"[cyan]{feature} requires the beta endpoint; enabling beta mode "
+                f"for this session (toggle with /beta).[/cyan]"
+            )
 
     def _has_system_message(self) -> bool:
         """True when the loaded conversation already starts with a system message."""
@@ -172,8 +193,15 @@ class DeepSeekCLI:
                 user_input = self.file_handler.format_for_message(user_input)
                 self.file_handler.clear()
 
-            # Add user message to history
-            self.chat_handler.add_message("user", user_input)
+            # Prefix completion and FIM are Beta-only features; without the
+            # beta host the API rejects them, so switch over automatically.
+            self._ensure_beta_for_beta_features()
+
+            fim = self.chat_handler.fim_mode
+            if not fim:
+                # FIM is a text completion, not a conversation turn, so it is
+                # deliberately kept out of the chat history.
+                self.chat_handler.add_message("user", user_input)
 
             original_raw_mode = self.chat_handler.raw_mode
             self.chat_handler.raw_mode = raw
@@ -181,6 +209,11 @@ class DeepSeekCLI:
             def make_request():
                 # Rebuild kwargs on every attempt so prefix-mode and any
                 # state changes (e.g. new API key after 401 recovery) apply.
+                if fim:
+                    prefix, suffix = self.chat_handler.parse_fim_input(user_input)
+                    kwargs = self.chat_handler.prepare_fim_request(prefix, suffix)
+                    response = self.api_client.create_completion(**kwargs)
+                    return self.chat_handler.handle_completion_response(response)
                 kwargs = self.chat_handler.prepare_chat_request()
                 response = self.api_client.create_chat_completion(**kwargs)
                 return self.chat_handler.handle_response(response)
@@ -311,12 +344,24 @@ class DeepSeekCLI:
             self.chat_handler.prefix_mode = True
         if getattr(args, "fim", False):
             self.chat_handler.fim_mode = True
+        if getattr(args, "think", False):
+            self.chat_handler.thinking = True
+        if getattr(args, "reasoning_effort", None) is not None:
+            self.chat_handler.set_reasoning_effort(args.reasoning_effort)
+        if getattr(args, "max_tokens", None) is not None:
+            if not self.chat_handler.set_max_tokens(args.max_tokens):
+                console.print(
+                    f"[yellow]! Ignoring --max-tokens {args.max_tokens}: must be "
+                    f"between 1 and "
+                    f"{MODEL_CONFIGS[self.chat_handler.model]['max_tokens']}.[/yellow]"
+                )
         if getattr(args, "temp", None) is not None:
             self.chat_handler.set_temperature(str(args.temp))
-        if getattr(args, "freq", None) is not None:
-            self.chat_handler.set_frequency_penalty(args.freq)
-        if getattr(args, "pres", None) is not None:
-            self.chat_handler.set_presence_penalty(args.pres)
+        if getattr(args, "freq", None) is not None or getattr(args, "pres", None) is not None:
+            console.print(
+                "[yellow]! --freq/--pres are ignored: the DeepSeek API no longer "
+                "supports frequency_penalty/presence_penalty.[/yellow]"
+            )
         if getattr(args, "top_p", None) is not None:
             self.chat_handler.set_top_p(args.top_p)
         if getattr(args, "stop", None):
@@ -348,9 +393,10 @@ class DeepSeekCLI:
         elif not self._has_system_message():
             self.chat_handler.set_system_message(DEFAULT_SYSTEM_MESSAGE)
 
-        # Set model if specified
-        if model and model in ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]:
-            self.chat_handler.switch_model(model)
+        # Set model if specified (switch_model validates and maps retired names)
+        if model and not self.chat_handler.switch_model(model):
+            console.print(f"[yellow]! Unknown model '{model}'; keeping "
+                          f"{self.chat_handler.model}.[/yellow]")
 
         # Get and return response
         result = self.get_completion(query, raw=raw) or "Error: Failed to get response"
@@ -456,8 +502,13 @@ def parse_arguments() -> argparse.Namespace:
         "-m",
         "--model",
         type=str,
-        choices=["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
-        help="Specify the model to use (deepseek-chat, deepseek-coder, deepseek-reasoner)",
+        choices=sorted(MODEL_CONFIGS) + sorted(LEGACY_MODEL_ALIASES),
+        metavar="MODEL",
+        help=(
+            "Model to use: " + ", ".join(sorted(MODEL_CONFIGS)) + ". The retired "
+            "names (" + ", ".join(sorted(LEGACY_MODEL_ALIASES)) + ") are accepted "
+            "and mapped to their replacement with a warning."
+        ),
     )
     parser.add_argument(
         "-r",
@@ -508,7 +559,35 @@ def parse_arguments() -> argparse.Namespace:
         "--fim",
         action="store_true",
         default=False,
-        help="Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags)",
+        help=(
+            "Enable Fill-in-the-Middle mode (use <fim_prefix>/<fim_suffix> tags). "
+            "Uses the beta completions endpoint; output is capped at 4K tokens."
+        ),
+    )
+    parser.add_argument(
+        "--think",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable Thinking mode. On the V4 models this is a per-request "
+            "parameter, replacing the retired deepseek-reasoner model."
+        ),
+    )
+    parser.add_argument(
+        "--reasoning-effort",
+        type=str,
+        choices=list(REASONING_EFFORT_LEVELS),
+        default=None,
+        dest="reasoning_effort",
+        help="Reasoning effort used when Thinking mode is on (default: high)",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=None,
+        dest="max_tokens",
+        metavar="N",
+        help="Maximum output tokens for this session (model maximum is 384000)",
     )
 
     # Input behavior
@@ -534,19 +613,22 @@ def parse_arguments() -> argparse.Namespace:
         metavar="FLOAT",
         help="Set temperature (0-2, or use REPL presets via /temp inside session)",
     )
+    # --freq / --pres are accepted but ignored: the API documents
+    # frequency_penalty and presence_penalty as no longer supported. They are
+    # kept so existing scripts do not fail on an unrecognised argument.
     parser.add_argument(
         "--freq",
         type=float,
         default=None,
         metavar="FLOAT",
-        help="Set frequency penalty (-2 to 2)",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--pres",
         type=float,
         default=None,
         metavar="FLOAT",
-        help="Set presence penalty (-2 to 2)",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--top-p",
